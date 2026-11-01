@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.2</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.3</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -41,7 +41,7 @@
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.2</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.3</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -65,7 +65,7 @@
   <aside class="panel">
     <h2 id="battleTitle"></h2>
     <div class="stats" id="battleInfo"></div>
-    <div class="note" style="margin-top:8px">マーカー凡例: <b style="color:var(--ink)">◆二重菱</b> 本隊（大将） / <b style="color:var(--ink)">▲</b> 主力・先鋒（敵の向きに尖る） / <b style="color:var(--ink)">旗</b> 側撃・別働隊 / <b style="color:var(--ink)">盾</b> 殿（しんがり）。色は味方=青、敵=赤。</div>
+    <div class="note" style="margin-top:8px">マーカー凡例（形=大将と兵種、試作割当）: <b style="color:var(--ink)">八角形</b> 大将 / <b style="color:var(--ink)">▲</b> 槍（敵の向きに尖る） / <b style="color:var(--ink)">◆</b> 騎馬 / <b style="color:var(--ink)">■</b> 鉄砲 / <b style="color:var(--ink)">半月</b> 弓。色は味方=青、敵=赤。殿・側撃などの役目は部隊名で示します。</div>
     <h3>視点（人物）</h3>
     <div class="seg" id="personSeg"></div>
     <div class="stats" id="personStats" style="margin-top:8px"></div>
@@ -93,20 +93,20 @@ const BATTLES = {
     river: [[0,66],[20,62],[42,65],[63,60],[84,63],[127,58]],
     lat:37.49831, lon:140.38847, riverLabel: "瀬戸川・人取橋（模式線）", northLabel: "北: 二本松方面", southLabel: "南: 本宮・連合軍の来た道",
     units: [
-      {name:"伊達本隊・政宗", mark:"政", type:"honjin", side:"ally", gx:64, gy:36},
-      {name:"成実隊", mark:"実", type:"main", side:"ally", gx:45, gy:50},
-      {name:"鬼庭隊（殿）", mark:"鬼", type:"rear", side:"ally", gx:59, gy:60},
-      {name:"連合本隊・佐竹", mark:"佐", type:"honjin", side:"enemy", gx:66, gy:99},
-      {name:"蘆名隊", mark:"蘆", type:"main", side:"enemy", gx:37, gy:93},
-      {name:"岩城隊", mark:"岩", type:"main", side:"enemy", gx:93, gy:95},
+      {name:"伊達本隊・政宗", mark:"政", troop:"general", side:"ally", gx:64, gy:36},
+      {name:"成実隊", mark:"実", troop:"kiba", side:"ally", gx:45, gy:50},
+      {name:"鬼庭隊（殿）", mark:"鬼", troop:"yari", side:"ally", gx:59, gy:60},
+      {name:"連合本隊・佐竹", mark:"佐", troop:"general", side:"enemy", gx:66, gy:99},
+      {name:"蘆名隊", mark:"蘆", troop:"yari", side:"enemy", gx:37, gy:93},
+      {name:"岩城隊", mark:"岩", troop:"yumi", side:"enemy", gx:93, gy:95},
     ],
     persons: {
-      masamune: { name:"伊達政宗", age:18, buyu:72, chiryaku:86, tactics:[
+      masamune: { name:"伊達政宗", troopKey:"general", troopLabel:"本隊（大将）", age:18, buyu:72, chiryaku:86, tactics:[
         {text:"成実に後を任せ、本隊を退く", role:"退却指揮", roleD:5, merit:3, src:"既存イベント", ok:"成実の奮戦で退き口が開いた。負けはしたが、軍と自分の命は残った。"},
         {text:"自ら先頭に残って押し返す", role:"先陣", roleD:25, merit:6, src:"既存イベント", ok:"味方は奮い立った。囲まれる危険と隣り合わせで退けた。"},
         {text:"橋のたもとを守り、退き口を確保する", role:"橋頭の防衛", roleD:20, merit:5, src:"試作追加", ok:"橋の出入り口を押さえ、本隊の退却を最後まで支えた。"},
       ]},
-      shigezane: { name:"伊達成実", age:17, buyu:78, chiryaku:82, tactics:[
+      shigezane: { name:"伊達成実", troopKey:"kiba", troopLabel:"騎馬", age:17, buyu:78, chiryaku:82, tactics:[
         {text:"殿を務め、政宗を先に退かせる", role:"殿（しんがり）", roleD:30, merit:8, src:"既存イベント", ok:"激しい攻撃を受けながらも退き口を守り抜いた。政宗から感状を与えられた。"},
         {text:"政宗と一緒に、一気に突き抜ける", role:"強行突破", roleD:22, merit:3, src:"既存イベント", ok:"勢いで一角は崩したが、本隊との間が開き、危うい退却になった。"},
         {text:"鬼庭隊と並んで二段の殿を組む", role:"殿・第二段", roleD:26, merit:6, src:"試作追加", ok:"二段構えの殿で追撃を食い止めた。史実ではこの役目で鬼庭良直が討死している。"},
@@ -120,20 +120,20 @@ const BATTLES = {
     river: [[0,96],[30,88],[58,90],[90,82],[127,86]],
     lat:37.56214, lon:140.06633, riverLabel: "日橋川方面（模式線）", northLabel: "北: 磐梯山", southLabel: "南: 猪苗代湖",
     units: [
-      {name:"伊達本隊・政宗", mark:"政", type:"honjin", side:"ally", gx:58, gy:72},
-      {name:"成実隊（側撃）", mark:"実", type:"flank", side:"ally", gx:28, gy:54},
-      {name:"片倉隊", mark:"片", type:"main", side:"ally", gx:76, gy:70},
-      {name:"蘆名本隊・義広", mark:"義", type:"honjin", side:"enemy", gx:64, gy:34},
-      {name:"金上隊", mark:"金", type:"main", side:"enemy", gx:46, gy:27},
-      {name:"佐瀬隊", mark:"瀬", type:"main", side:"enemy", gx:84, gy:30},
+      {name:"伊達本隊・政宗", mark:"政", troop:"general", side:"ally", gx:58, gy:72},
+      {name:"成実隊（側撃）", mark:"実", troop:"kiba", side:"ally", gx:28, gy:54},
+      {name:"片倉隊", mark:"片", troop:"teppo", side:"ally", gx:76, gy:70},
+      {name:"蘆名本隊・義広", mark:"義", troop:"general", side:"enemy", gx:64, gy:34},
+      {name:"金上隊", mark:"金", troop:"yari", side:"enemy", gx:46, gy:27},
+      {name:"佐瀬隊", mark:"瀬", troop:"kiba", side:"enemy", gx:84, gy:30},
     ],
     persons: {
-      masamune: { name:"伊達政宗", age:22, buyu:72, chiryaku:86, tactics:[
+      masamune: { name:"伊達政宗", troopKey:"general", troopLabel:"本隊（大将）", age:22, buyu:72, chiryaku:86, tactics:[
         {text:"成実の側撃に賭け、一気に攻める", role:"側撃への全軍呼応", roleD:18, terra:-5, merit:8, src:"既存イベント", ok:"横からの一撃が蘆名の陣を崩した。会津への道が開けた。"},
         {text:"堅く構えて、相手が崩れるのを待つ", role:"本陣・堅守", roleD:5, merit:2, src:"既存イベント", ok:"大きな勝ちはなかったが、味方の損耗も少なかった。会津攻めは長引いた。"},
         {text:"正面から一気に押し切る", role:"正面決戦", roleD:22, merit:6, src:"試作追加", ok:"正面の押し合いは互角に近く、決め手は他隊の働きに委ねられた。"},
       ]},
-      shigezane: { name:"伊達成実", age:21, buyu:78, chiryaku:82, tactics:[
+      shigezane: { name:"伊達成実", troopKey:"kiba", troopLabel:"騎馬", age:21, buyu:78, chiryaku:82, tactics:[
         {text:"地形を使って回り込み、横から突く", role:"側撃", roleD:20, terra:-10, merit:8, src:"既存イベント", ok:"側面への一撃が蘆名軍を崩した。この合戦の勝敗を分けた働きになった。（前日に片倉景綱と偵察済み: 地形修正 −10）"},
         {text:"本隊と並んで正面から当たる", role:"正面", roleD:15, merit:3, src:"既存イベント", ok:"堅実な戦いになったが、決め手には欠けた。勝ちは他隊の働きに譲った。"},
         {text:"囮となって敵先鋒を引き込む", role:"囮・誘引", roleD:26, merit:6, src:"試作追加", ok:"敵先鋒を原の奥へ引き込み、本隊の挟撃が決まった。"},
@@ -144,8 +144,10 @@ const BATTLES = {
 let curBattle="hitotoribashi", curPerson="masamune", curTactic=0, curView="3d";
 const $=s=>document.querySelector(s);
 function healthMods(){ const h=$("#healthSel").value; return h==="good"?{buyu:0,danger:0,label:"健やか"}:h==="bad"?{buyu:-8,danger:4,label:"不調"}:{buyu:-20,danger:10,label:"重篤"}; }
+function troopAdj(t){ const P=BATTLES[curBattle].persons[curPerson]; if(P.troopKey!=="kiba") return 0;
+  if(/側撃|突破|囮|強行/.test(t.role)) return -4; if(/堅守|本陣|橋頭/.test(t.role)) return 2; return 0; }
 function dangerOf(t){ const B=BATTLES[curBattle], P=B.persons[curPerson], hm=healthMods();
-  const eff=P.buyu+hm.buyu; return Math.max(2, Math.round(B.base + t.roleD + B.enemyAdv - eff*0.25 - P.chiryaku*0.15 + hm.danger + (t.terra||0))); }
+  const eff=P.buyu+hm.buyu; return Math.max(2, Math.round(B.base + t.roleD + B.enemyAdv - eff*0.25 - P.chiryaku*0.15 + hm.danger + (t.terra||0) + troopAdj(t))); }
 function band(d){ return d<30?["低","d-low"]:d<55?["中","d-mid"]:d<75?["高","d-high"]:["極高","d-ext"]; }
 function renderPanel(){
   const B=BATTLES[curBattle];
@@ -155,11 +157,12 @@ function renderPanel(){
   const ps=$("#personSeg"); ps.innerHTML="";
   Object.entries(B.persons).forEach(([k,p])=>{ const b=document.createElement("button"); b.textContent=p.name; if(k===curPerson)b.className="on"; b.onclick=()=>{curPerson=k;curTactic=0;renderPanel();}; ps.appendChild(b); });
   const P=B.persons[curPerson];
-  $("#personStats").innerHTML = "年齢 <b>"+P.age+"歳</b> / 武勇 <b>"+P.buyu+"</b> / 知略（采配） <b>"+P.chiryaku+"</b>";
+  $("#personStats").innerHTML = "年齢 <b>"+P.age+"歳</b> / 武勇 <b>"+P.buyu+"</b> / 知略（采配） <b>"+P.chiryaku+"</b> / 兵種 <b>"+P.troopLabel+"</b>";
   const tw=$("#tactics"); tw.innerHTML="";
   P.tactics.forEach((t,i)=>{ const d=dangerOf(t), bd=band(d);
     const b=document.createElement("button"); b.className="tactic"+(i===curTactic?" on":"");
-    b.innerHTML = '<span class="t">'+t.text+'</span><span class="m">役目: '+t.role+'（'+t.src+'） / 手柄の期待: 評判+'+t.merit+' / 危険度 <span class="danger '+bd[1]+'">'+d+"・"+bd[0]+'</span></span>';
+    const ta=troopAdj(t); const taTxt = ta!==0 ? ' / 兵種（騎馬）補正 '+(ta>0?'+':'−')+Math.abs(ta) : '';
+    b.innerHTML = '<span class="t">'+t.text+'</span><span class="m">役目: '+t.role+'（'+t.src+'） / 手柄の期待: 評判+'+t.merit+taTxt+' / 危険度 <span class="danger '+bd[1]+'">'+d+"・"+bd[0]+'</span></span>';
     b.onclick=()=>{curTactic=i;renderPanel();}; tw.appendChild(b); });
   $("#exVal").textContent = "×"+$("#exSlider").value;
 }
@@ -214,12 +217,11 @@ function draw2D(){
     const fillC=u.side==="ally"?"#274b78":"#7e2f22";
     ctx.fillStyle=fillC; ctx.lineWidth=1.6; ctx.strokeStyle="#d9c68f";
     let kx=x, ky=y+0.5;
-    if(u.type==="honjin"){ ctx.beginPath(); ctx.moveTo(x,y-R-2); ctx.lineTo(x+R+2,y); ctx.lineTo(x,y+R+2); ctx.lineTo(x-R-2,y); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x,y-R+4); ctx.lineTo(x+R-4,y); ctx.lineTo(x,y+R-4); ctx.lineTo(x-R+4,y); ctx.closePath(); ctx.strokeStyle="#f2e9d4"; ctx.lineWidth=1.1; ctx.stroke(); }
-    else if(u.type==="main"){ const dir=u.side==="ally"?1:-1; ctx.beginPath(); ctx.moveTo(x, y+dir*(R+1)); ctx.lineTo(x-R, y-dir*R*0.75); ctx.lineTo(x+R, y-dir*R*0.75); ctx.closePath(); ctx.fill(); ctx.stroke(); ky=y-dir*2; }
-    else if(u.type==="flank"){ ctx.beginPath(); ctx.moveTo(x-9,y-R-2); ctx.lineTo(x-9,y+R+2); ctx.strokeStyle="#d9c68f"; ctx.lineWidth=2; ctx.stroke();
-      ctx.beginPath(); ctx.rect(x-9, y-R-2, 21, 12); ctx.fillStyle=fillC; ctx.fill(); ctx.strokeStyle="#d9c68f"; ctx.lineWidth=1.4; ctx.stroke(); kx=x+1.5; ky=y-R+4.5; }
-    else if(u.type==="rear"){ ctx.beginPath(); ctx.moveTo(x-R, y-R*0.7); ctx.lineTo(x+R, y-R*0.7); ctx.lineTo(x+R, y+R*0.15); ctx.lineTo(x, y+R+1); ctx.lineTo(x-R, y+R*0.15); ctx.closePath(); ctx.fill(); ctx.stroke(); ky=y-1; }
+    const oct=(cx,cy,r)=>{ ctx.beginPath(); for(let k=0;k<8;k++){ const a=Math.PI/8 + k*Math.PI/4; const px=cx+r*Math.cos(a), py=cy+r*Math.sin(a); k?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.closePath(); };
+    if(u.troop==="general"){ oct(x,y,R+2.5); ctx.fill(); ctx.lineWidth=2.2; ctx.strokeStyle="#e6c96a"; ctx.stroke(); oct(x,y,R-1.5); ctx.lineWidth=1; ctx.strokeStyle="#f2e9d4"; ctx.stroke(); }
+    else if(u.troop==="yari"){ const dir=u.side==="ally"?1:-1; ctx.beginPath(); ctx.moveTo(x, y+dir*(R+1)); ctx.lineTo(x-R, y-dir*R*0.75); ctx.lineTo(x+R, y-dir*R*0.75); ctx.closePath(); ctx.fill(); ctx.stroke(); ky=y-dir*2; }
+    else if(u.troop==="teppo"){ ctx.beginPath(); ctx.rect(x-R+2, y-R+2, (R-2)*2, (R-2)*2); ctx.fill(); ctx.stroke(); }
+    else if(u.troop==="yumi"){ const dir=u.side==="ally"?1:-1; ctx.beginPath(); if(dir>0){ ctx.arc(x,y-2,R,0,Math.PI,false); } else { ctx.arc(x,y+2,R,Math.PI,0,false); } ctx.closePath(); ctx.fill(); ctx.stroke(); ky=y+dir*(R*0.32); }
     else { ctx.beginPath(); ctx.moveTo(x,y-R); ctx.lineTo(x+R,y); ctx.lineTo(x,y+R); ctx.lineTo(x-R,y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     ctx.fillStyle="#f2e9d4"; ctx.font="bold 12.5px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(u.mark||"", kx, ky);
     // 名前は小さな陣幕風ラベルに
@@ -271,9 +273,9 @@ function buildTerrain(){
   if(osm3){ osm3.highways.forEach(w=>addLine(w.pts,0x8a8064)); osm3.waters.forEach(w=>addLine(w.pts,0x4d7fa6)); osm3.waterways.forEach(w=>addLine(w.pts,0x7fc4ff)); }
   else { addLine(B.river,0x7fc4ff); }
   B.units.forEach(u=>{ const v=toXYZ(u.gx,u.gy);
-    const geo3 = u.type==="honjin" ? new THREE.OctahedronGeometry(3.7) : u.type==="flank" ? new THREE.BoxGeometry(6.4,2.4,2.4) : u.type==="rear" ? new THREE.ConeGeometry(3.1,5.2,6) : new THREE.ConeGeometry(2.9,5.6,6);
+    const geo3 = u.troop==="general" ? new THREE.CylinderGeometry(3.9,3.9,2.4,8) : u.troop==="teppo" ? new THREE.BoxGeometry(4.8,2.8,4.8) : u.troop==="yumi" ? new THREE.TorusGeometry(2.7,0.95,8,18,Math.PI) : u.troop==="yari" ? new THREE.ConeGeometry(2.9,5.6,6) : new THREE.OctahedronGeometry(3.4);
     const s=new THREE.Mesh(geo3, new THREE.MeshBasicMaterial({color:u.side==="ally"?0x8fc1ff:0xff9d8a}));
-    if(u.type==="rear") s.rotation.x=Math.PI;
+    if(u.troop==="yumi") s.rotation.z=0;
     s.position.set(v[0],v[1],v[2]); scene.add(s); threeState.markers.push(s);
     const cv=document.createElement("canvas"); cv.width=256; cv.height=56; const cx=cv.getContext("2d");
     cx.fillStyle="rgba(10,9,6,0.75)"; cx.fillRect(0,0,256,56); cx.fillStyle="#ece2c8"; cx.font="24px sans-serif"; cx.textAlign="center"; cx.fillText(u.name,128,37);
