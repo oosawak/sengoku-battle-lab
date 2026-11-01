@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.9</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.10</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -20,7 +20,7 @@
   #view2d{display:none}
   #compass{position:absolute;top:10px;right:10px;width:52px;height:52px;border-radius:50%;background:rgba(20,18,13,.85);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;color:var(--sub)}
   #needle{font-size:18px;line-height:1;color:var(--accent);display:block}
-  #tacticOverlay{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,12,9,.93);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #tacticOverlay{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,12,9,.93);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-height:82%;overflow-y:auto}
   #tacticOverlay .to-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   #toTitle{font-weight:700;font-size:14.5px}
   #toMeta{font-size:12px;color:var(--sub)}
@@ -28,7 +28,7 @@
   #toTactics .tactic{padding:8px 10px}
   #toTactics .tactic .t{font-size:13.5px}
   #toTactics .tactic .m{font-size:11.5px}
-  #toResolve{width:100%;margin-top:8px;background:var(--gold);color:#241f10;font-weight:700;border:none;border-radius:9px;padding:10px;font-size:14.5px;cursor:pointer}
+  #toResolve{width:100%;margin-top:8px;background:var(--gold);color:#241f10;font-weight:700;border:none;border-radius:9px;padding:10px;font-size:14.5px;cursor:pointer;position:sticky;bottom:0;box-shadow:0 -4px 14px rgba(0,0,0,.45)}
   #toToggle{background:#221e15;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit}
   #toCompact{display:none;font-size:13px;color:var(--ink)}
   #tacticOverlay.collapsed #toTactics, #tacticOverlay.collapsed #toResolve{display:none}
@@ -63,7 +63,7 @@
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.9</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.10</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
