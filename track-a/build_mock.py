@@ -23,7 +23,7 @@ html = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.11</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.12</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -33,7 +33,10 @@ html = r"""<!DOCTYPE html>
   .seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
   .seg button{background:transparent;color:var(--sub);border:0;padding:8px 14px;font-size:14px;cursor:pointer;font-family:inherit}
   .seg button.on{background:var(--accent);color:#1a160d;font-weight:700}
-  main{display:grid;grid-template-columns:1fr 340px;gap:12px;padding:10px 16px 20px}
+  main{display:block;padding:10px 16px 20px}
+  .fold{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}
+  .fold-head{width:100%;text-align:left;background:none;border:none;color:var(--ink);font-size:13.5px;font-weight:700;cursor:pointer;padding:2px 0;font-family:inherit}
+  .fold-body{margin-top:6px}
   @media(max-width:860px){ main{grid-template-columns:1fr} }
   #stage{position:relative;background:#0d0c09;border:1px solid var(--line);border-radius:10px;min-height:420px;overflow:hidden}
   #view3d,#view2d{width:100%;height:520px;display:block}
@@ -100,7 +103,7 @@ html = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.11</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.12</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -128,29 +131,38 @@ html = r"""<!DOCTYPE html>
       <div id="shTactics"></div>
       <div id="shStatus" class="hiddenOv"></div>
       <div id="shResult" class="hiddenOv"><div id="shRoHead"></div><div id="shRoBody"></div></div>
+      <div class="fold">
+        <button class="fold-head" data-fold="foldPerson">武将・健康 ▽</button>
+        <div class="fold-body hiddenOv" id="foldPerson">
+          <div class="seg" id="personSeg"></div>
+          <div class="stats" id="personStats" style="margin-top:8px"></div>
+          <label class="lbl">健康（決定003の状態語）</label>
+          <select id="healthSel">
+            <option value="good">健やか</option><option value="bad">不調</option><option value="critical">重篤</option>
+          </select>
+        </div>
+      </div>
+      <div class="fold">
+        <button class="fold-head" data-fold="foldInfo">合戦情報・凡例 ▽</button>
+        <div class="fold-body hiddenOv" id="foldInfo">
+          <h3 id="battleTitle" style="margin:2px 0 6px"></h3>
+          <div class="stats" id="battleInfo"></div>
+          <div class="note" style="margin-top:8px">マーカー凡例（形=大将と兵種、試作割当）: <b style="color:var(--ink)">八角形</b> 大将 / <b style="color:var(--ink)">▲</b> 槍（敵の向きに尖る） / <b style="color:var(--ink)">◆</b> 騎馬 / <b style="color:var(--ink)">■</b> 鉄砲 / <b style="color:var(--ink)">半月</b> 弓。色は味方=青、敵=赤。殿・側撃などの役目は部隊名で示します。</div>
+          <label class="lbl">地形の縦誇張（3D）: <span id="exVal"></span></label>
+          <input type="range" id="exSlider" min="1" max="10" step="0.5" value="6">
+          <p class="note" style="margin-top:10px">危険度は設計メモv0.1の試作式: 合戦基礎＋役目危険＋敵優勢 − 実効武勇×0.25 − 知略×0.15 ＋健康補正＋地形修正。討死は危険度50以上でのみ起こりえます。数値はすべて調整用の試作値です。</p>
+        </div>
+      </div>
+      <div class="fold">
+        <button class="fold-head" data-fold="foldLog">経過ログ ▽</button>
+        <div class="fold-body hiddenOv" id="foldLog">
+          <div id="turnLog"></div>
+          <div id="result"></div>
+        </div>
+      </div>
     </div>
     <div class="sheet-foot"><button id="shDecide">決定する（この采配で進める）</button><button id="shAgain" class="hiddenOv">もう一度（配置を戻す）</button></div>
   </div>
-  <aside class="panel">
-    <h2 id="battleTitle"></h2>
-    <div class="stats" id="battleInfo"></div>
-    <div class="note" style="margin-top:8px">マーカー凡例（形=大将と兵種、試作割当）: <b style="color:var(--ink)">八角形</b> 大将 / <b style="color:var(--ink)">▲</b> 槍（敵の向きに尖る） / <b style="color:var(--ink)">◆</b> 騎馬 / <b style="color:var(--ink)">■</b> 鉄砲 / <b style="color:var(--ink)">半月</b> 弓。色は味方=青、敵=赤。殿・側撃などの役目は部隊名で示します。</div>
-    <h3>視点（人物）</h3>
-    <div class="seg" id="personSeg"></div>
-    <div class="stats" id="personStats" style="margin-top:8px"></div>
-    <label class="lbl">健康（決定003の状態語）</label>
-    <select id="healthSel">
-      <option value="good">健やか</option><option value="bad">不調</option><option value="critical">重篤</option>
-    </select>
-    <h3>采配を選ぶ</h3>
-    <div id="tactics"></div>
-    <label class="lbl">地形の縦誇張（3D）: <span id="exVal"></span></label>
-    <input type="range" id="exSlider" min="1" max="10" step="0.5" value="6">
-    <button id="resolve">決定する（この采配で合戦を解決）</button>
-    <div id="turnLog" style="margin-top:10px"></div>
-    <div id="result"></div>
-    <p class="note" style="margin-top:12px">危険度は設計メモv0.1の試作式: 合戦基礎＋役目危険＋敵優勢 − 実効武勇×0.25 − 知略×0.15 ＋健康補正＋地形修正。討死は危険度50以上でのみ起こりえます。数値はすべて調整用の試作値です。</p>
-  </aside>
 </main>
 <script>
 const DEM = { hitotoribashi: __HITO__, suriagehara: __SURI__ };
@@ -234,12 +246,7 @@ function renderPanel(){
   Object.entries(B.persons).forEach(([k,p])=>{ const b=document.createElement("button"); b.textContent=p.name; if(k===curPerson)b.className="on"; b.onclick=()=>{curPerson=k;curTactic=0;renderPanel();}; ps.appendChild(b); });
   const P=B.persons[curPerson];
   $("#personStats").innerHTML = "年齢 <b>"+P.age+"歳</b> / 武勇 <b>"+P.buyu+"</b> / 知略（采配） <b>"+P.chiryaku+"</b> / 兵種 <b>"+P.troopLabel+"</b>";
-  const tw=$("#tactics"); tw.innerHTML="";
-  P.tactics.forEach((t,i)=>{ const d=dangerOf(t), bd=band(d);
-    const b=document.createElement("button"); b.className="tactic"+(i===curTactic?" on":"");
-    const ta=troopAdj(t); const taTxt = ta!==0 ? ' / 兵種（騎馬）補正 '+(ta>0?'+':'−')+Math.abs(ta) : '';
-    b.innerHTML = '<span class="t">'+t.text+'</span><span class="m">役目: '+t.role+'（'+t.src+'） / 手柄の期待: 評判+'+t.merit+taTxt+' / 危険度 <span class="danger '+bd[1]+'">'+d+"・"+bd[0]+'</span></span>';
-    b.onclick=()=>{curTactic=i;renderPanel();}; tw.appendChild(b); });
+  /* 采配リストは下部シート側（renderOverlay）が描く */
   $("#exVal").textContent = "×"+$("#exSlider").value;
   renderOverlay(); syncOverlay();
 }
@@ -347,12 +354,12 @@ async function animateTurns(){ const B=BATTLES[curBattle]; turnPos=B.units.map(u
     logTurn("第"+t+"ターン — "+(texts[t-1]||"")); setStatus("第"+t+"ターン — "+(texts[t-1]||"")); await sleep(300); } }
 function resetBattlePositions(){ turnPos=null; battlePhase="ready"; if(curView==="2d") draw2D(); else buildTerrain(); syncOverlay(); }
 async function playBattle(){ if(battlePhase==="playing") return; if(battlePhase==="done") resetBattlePositions();
-  battlePhase="playing"; const rb=$("#resolve"); rb.disabled=true; rb.textContent="合戦中…（ターンが進んでいます）";
+  battlePhase="playing"; const rb=$("#shDecide"); rb.disabled=true;
   $("#turnLog").innerHTML=""; $("#result").style.display="none"; syncOverlay();
   if(threeState && threeState.ctl) threeState.ctl.autoRotate=false;
   setStatus("采配「"+BATTLES[curBattle].persons[curPerson].tactics[curTactic].text+"」— 合戦が始まります");
   await animateTurns();
-  battlePhase="done"; rb.disabled=false; rb.textContent="もう一度（配置を戻して再戦）"; resolveBattle(); syncOverlay(); }
+  battlePhase="done"; rb.disabled=false; resolveBattle(); syncOverlay(); }
 /* ---------- 3D (three.js, 同梱vendor) ---------- */
 function flagTexture(u, THREE){ const isGen=u.troop==="general"; const c=document.createElement("canvas"); c.width=isGen?96:160; c.height=isGen?256:104; const x=c.getContext("2d");
   x.fillStyle=u.side==="ally"?"#2c5f9e":"#9e3b2c"; x.fillRect(0,0,c.width,c.height);
@@ -449,15 +456,15 @@ async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=
   }catch(e){ OSMSTATUS[bid]='fail'; }
   if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } }
 /* ---------- wiring ---------- */
-document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; const rb2=$("#resolve"); rb2.disabled=false; rb2.textContent="決定する（この采配で合戦を解決）"; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
+document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#viewSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curView=b.dataset.v;
   $("#view3d").style.display = curView==="3d"?"block":"none"; $("#view2d").style.display = curView==="2d"?"block":"none"; if(curView==="2d") draw2D(); });
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
-$("#resolve").onclick=playBattle;
 $("#shDecide").onclick=playBattle;
 $("#shToggle").onclick=()=>{ overlayCollapsed=!overlayCollapsed; renderOverlay(); };
-$("#shAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; const rb=$("#resolve"); rb.disabled=false; rb.textContent="決定する（この采配で合戦を解決）"; syncOverlay(); };
+document.querySelectorAll(".fold-head").forEach(b=>b.onclick=()=>{ const f=document.getElementById(b.dataset.fold); const nowHidden=f.classList.toggle("hiddenOv"); b.textContent=b.textContent.replace(/▽|△$/, nowHidden?"▽":"△"); });
+$("#shAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; syncOverlay(); };
 $("#exSlider").value=BATTLES[curBattle].exDefault;
 renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
 </script>
