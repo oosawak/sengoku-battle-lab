@@ -2,6 +2,21 @@ import json, pathlib
 base = pathlib.Path("workspace/sengoku-battle-lab/track-a")
 hito = (base/"data/hitotoribashi.json").read_text()
 suri = (base/"data/suriagehara.json").read_text()
+MAJOR = {"motorway","motorway_link","trunk","primary","secondary","tertiary"}
+def filtered_osm(bid):
+    d = json.loads((base/f"data/osm-{bid}.json").read_text())
+    hw = [h for h in d["highways"] if h["kind"] in MAJOR or h["name"]]
+    seen = set(); out_hw = []
+    for h in hw:
+        key = (h["name"], tuple(map(tuple, h["pts"])))
+        if key in seen: continue
+        seen.add(key); out_hw.append({"name": h["name"], "pts": h["pts"]})
+    return {"waterways": [{"name": w["name"], "pts": w["pts"]} for w in d["waterways"]],
+            "highways": out_hw,
+            "waters": [{"name": w["name"], "pts": w["pts"]} for w in d["waters"]]}
+osm_hito = json.dumps(filtered_osm("hitotoribashi"), ensure_ascii=False)
+osm_suri = json.dumps(filtered_osm("suriagehara"), ensure_ascii=False)
+print("osm embed sizes:", len(osm_hito), len(osm_suri))
 
 html = r"""<!DOCTYPE html>
 <html lang="ja">
@@ -44,7 +59,7 @@ html = r"""<!DOCTYPE html>
 <body>
 <header>
   <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.1</h1>
-  <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapから読み込みます（失敗した場合は模式線で代用）。</div>
+  <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
       <button data-b="hitotoribashi" class="on">人取橋 1585</button>
@@ -83,6 +98,7 @@ html = r"""<!DOCTYPE html>
 </main>
 <script>
 const DEM = { hitotoribashi: __HITO__, suriagehara: __SURI__ };
+const OSM_BAKED = { hitotoribashi: __OSM_HITO__, suriagehara: __OSM_SURI__ };
 const BATTLES = {
   hitotoribashi: {
     title: "人取橋の戦い", date: "1585年11月17日", place: "本宮市・人取橋古戦場（37.49831, 140.38847）",
@@ -254,7 +270,7 @@ function buildTerrain(){
 }
 function animate(){ if(!threeState) return; requestAnimationFrame(animate); threeState.ctl.update(); threeState.ren.render(threeState.scene, threeState.cam); }
 /* ---------- OSM runtime fetch (pattern adapted from the user's OSMCityScout, MIT) ---------- */
-let OSMDATA={}, OSMSTATUS={};
+let OSMDATA=OSM_BAKED, OSMSTATUS={hitotoribashi:'baked', suriagehara:'baked'};
 function globalPx(lat,lon){ const n=16384; const gx=(lon+180)/360*n*256; const r=lat*Math.PI/180; const gy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n*256; return [gx,gy]; }
 function cropOrigin(lat,lon){ const g=globalPx(lat,lon); const cx=Math.floor(g[0]), cy=Math.floor(g[1]); const tx=Math.floor(cx/256), ty=Math.floor(cy/256); const px=cx-(tx-1)*256, py=cy-(ty-1)*256; const left=Math.max(0,Math.min(768-512,px-256)), top=Math.max(0,Math.min(768-512,py-256)); return [(tx-1)*256+left,(ty-1)*256+top]; }
 function toGrid(lat,lon,origin){ const g=globalPx(lat,lon); return [(g[0]-origin[0])/512*127,(g[1]-origin[1])/512*127]; }
@@ -267,7 +283,7 @@ async function fetchOverpass(query){ let lastErr=null;
     }catch(e){ lastErr=e; } finally{ clearTimeout(to); } }
   throw lastErr||new Error('overpass failed'); }
 function updateBadge(){ const m=DEM[curBattle].meta; let osmMsg='川・道: 模式線'; const st=OSMSTATUS[curBattle], d=OSMDATA[curBattle];
-  if(st==='loading') osmMsg='川・道: OSMから読み込み中…'; else if(d) osmMsg='川 '+(d.waterways.length)+'本・道 '+(d.highways.length)+'本: OSM実線'+(st&&st.startsWith('ok:')?'（'+st.slice(3)+'）':st==='cache'?'（保存分）':''); else if(st==='fail') osmMsg='川・道: OSM取得に失敗したため模式線';
+  if(st==='loading') osmMsg='川・道: OSMから読み込み中…'; else if(d) osmMsg='川 '+(d.waterways.length)+'本・道 '+(d.highways.length)+'本: OSM実線'+(st&&st.startsWith('ok:')?'（'+st.slice(3)+'）':st==='cache'?'（保存分）':st==='baked'?'（取得済み）':''); else if(st==='fail') osmMsg='川・道: OSM取得に失敗したため模式線';
   $("#stageBadge").textContent='地形: 地理院DEM10B実データ / 標高 '+m.min+'〜'+m.max+'m / '+osmMsg; }
 async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=BATTLES[bid]; OSMSTATUS[bid]='loading'; if(bid===curBattle) updateBadge();
   const cacheKey='battlelab-osm:'+bid;
@@ -291,6 +307,6 @@ renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
 </body>
 </html>
 """
-html = html.replace("__HITO__", hito).replace("__SURI__", suri)
+html = html.replace("__HITO__", hito).replace("__SURI__", suri).replace("__OSM_HITO__", osm_hito).replace("__OSM_SURI__", osm_suri)
 (base/"index.html").write_text(html)
 print("written", len(html))
