@@ -39,7 +39,7 @@
 <body>
 <header>
   <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.1</h1>
-  <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置と川・道の線は模式図で、史実の布陣再現ではありません。</div>
+  <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapから読み込みます（失敗した場合は模式線で代用）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
       <button data-b="hitotoribashi" class="on">人取橋 1585</button>
@@ -84,7 +84,7 @@ const BATTLES = {
     info: "伊達 約7,000 vs 佐竹・蘆名連合 約30,000（伝承値）。問いは「勝つ」ではなく「軍を残して退けるか」。標高 202〜360m。",
     base: 35, enemyAdv: 20, exDefault: 6, contourStep: 20,
     river: [[0,66],[20,62],[42,65],[63,60],[84,63],[127,58]],
-    riverLabel: "瀬戸川・人取橋（模式線）", northLabel: "北: 二本松方面", southLabel: "南: 本宮・連合軍の来た道",
+    lat:37.49831, lon:140.38847, riverLabel: "瀬戸川・人取橋（模式線）", northLabel: "北: 二本松方面", southLabel: "南: 本宮・連合軍の来た道",
     units: [
       {name:"伊達本隊・政宗", side:"ally", gx:64, gy:36},
       {name:"成実隊", side:"ally", gx:45, gy:50},
@@ -111,7 +111,7 @@ const BATTLES = {
     info: "伊達 vs 蘆名義広。標高550〜600mの火山扇状地（コトバンク）。標高 516〜877mと起伏が大きく、3Dが映える舞台。前日の偵察が鍵。",
     base: 35, enemyAdv: 10, exDefault: 3.5, contourStep: 25,
     river: [[0,96],[30,88],[58,90],[90,82],[127,86]],
-    riverLabel: "日橋川方面（模式線）", northLabel: "北: 磐梯山", southLabel: "南: 猪苗代湖",
+    lat:37.56214, lon:140.06633, riverLabel: "日橋川方面（模式線）", northLabel: "北: 磐梯山", southLabel: "南: 猪苗代湖",
     units: [
       {name:"伊達本隊・政宗", side:"ally", gx:58, gy:72},
       {name:"成実隊（側撃）", side:"ally", gx:28, gy:54},
@@ -144,7 +144,7 @@ function renderPanel(){
   const B=BATTLES[curBattle];
   $("#battleTitle").textContent = B.title+"（"+B.date+"）";
   $("#battleInfo").innerHTML = B.place+"<br>"+B.info;
-  $("#stageBadge").textContent = "地形: 地理院DEM10B実データ / 標高 "+DEM[curBattle].meta.min+"〜"+DEM[curBattle].meta.max+"m / 配置・川は模式図";
+  updateBadge();
   const ps=$("#personSeg"); ps.innerHTML="";
   Object.entries(B.persons).forEach(([k,p])=>{ const b=document.createElement("button"); b.textContent=p.name; if(k===curPerson)b.className="on"; b.onclick=()=>{curPerson=k;curTactic=0;renderPanel();}; ps.appendChild(b); });
   const P=B.persons[curPerson];
@@ -189,9 +189,18 @@ function draw2D(){
     ctx.stroke();
   }
   const B=BATTLES[curBattle];
-  ctx.strokeStyle="#7fc4ff"; ctx.lineWidth=3; ctx.beginPath();
-  B.river.forEach((p,i)=>{ const x=p[0]/127*W, y=p[1]/127*H; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
-  ctx.fillStyle="#cfe8ff"; ctx.font="12px sans-serif"; ctx.fillText(B.riverLabel, 14, H-34);
+  const osm=OSMDATA[curBattle];
+  const drawPts=(pts,close)=>{ ctx.beginPath(); pts.forEach((p,i)=>{ const x=p[0]/127*W, y=p[1]/127*H; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); if(close)ctx.closePath(); ctx.stroke(); };
+  if(osm){
+    ctx.strokeStyle="rgba(225,215,185,0.38)"; ctx.lineWidth=1; osm.highways.forEach(w=>drawPts(w.pts,false));
+    ctx.strokeStyle="rgba(127,196,255,0.55)"; ctx.lineWidth=1.5; osm.waters.forEach(w=>drawPts(w.pts,true));
+    ctx.strokeStyle="#7fc4ff"; ctx.lineWidth=2.5; osm.waterways.forEach(w=>drawPts(w.pts,false));
+    const rn=osm.waterways.find(w=>w.name);
+    ctx.fillStyle="#cfe8ff"; ctx.font="12px sans-serif"; ctx.fillText(rn?("川: "+rn.name+"（OSM実線）"):"川・道: OSM実線", 14, H-34);
+  } else {
+    ctx.strokeStyle="#7fc4ff"; ctx.lineWidth=3; drawPts(B.river,false);
+    ctx.fillStyle="#cfe8ff"; ctx.font="12px sans-serif"; ctx.fillText(B.riverLabel, 14, H-34);
+  }
   ctx.fillStyle="#b8ab8a"; ctx.fillText(B.northLabel, 14, 20); ctx.fillText(B.southLabel, 14, H-14);
   B.units.forEach(u=>{ const x=u.gx/127*W, y=u.gy/127*H; ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.fillStyle=u.side==="ally"?"#2c5f9e":"#9e3b2c"; ctx.fill(); ctx.strokeStyle="#ece2c8"; ctx.stroke();
     ctx.fillStyle="#ece2c8"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText(u.name, x, y-14); ctx.textAlign="left"; });
@@ -227,9 +236,10 @@ function buildTerrain(){
   const mesh=new THREE.Mesh(geo,mat); scene.add(mesh); threeState.mesh=mesh;
   const toXYZ=(gx,gy)=>{ const h=ev[Math.round(gy)][Math.round(gx)]; return [ (gx/127-0.5)*SIZE, (h-min)*yScale+4, (gy/127-0.5)*SIZE ]; };
   const B=BATTLES[curBattle];
-  const riverPts=B.river.map(p=>{ const v=toXYZ(p[0],p[1]); return new THREE.Vector3(v[0],v[1],v[2]); });
-  const river=new THREE.Line(new THREE.BufferGeometry().setFromPoints(riverPts), new THREE.LineBasicMaterial({color:0x7fc4ff}));
-  scene.add(river); threeState.markers.push(river);
+  const osm3=OSMDATA[curBattle];
+  const addLine=(pts,color)=>{ if(!pts||pts.length<2) return; const v=pts.map(p=>{ const gx=Math.max(0,Math.min(127,Math.round(p[0]))), gy=Math.max(0,Math.min(127,Math.round(p[1]))); const h=ev[gy][gx]; return new THREE.Vector3((p[0]/127-0.5)*SIZE,(h-min)*yScale+1.5,(p[1]/127-0.5)*SIZE); }); const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({color})); scene.add(line); threeState.markers.push(line); };
+  if(osm3){ osm3.highways.forEach(w=>addLine(w.pts,0x8a8064)); osm3.waters.forEach(w=>addLine(w.pts,0x4d7fa6)); osm3.waterways.forEach(w=>addLine(w.pts,0x7fc4ff)); }
+  else { addLine(B.river,0x7fc4ff); }
   B.units.forEach(u=>{ const v=toXYZ(u.gx,u.gy);
     const s=new THREE.Mesh(new THREE.SphereGeometry(2.6,12,12), new THREE.MeshBasicMaterial({color:u.side==="ally"?0x8fc1ff:0xff9d8a}));
     s.position.set(v[0],v[1],v[2]); scene.add(s); threeState.markers.push(s);
@@ -238,15 +248,40 @@ function buildTerrain(){
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true})); sp.scale.set(38,8.3,1); sp.position.set(v[0],v[1]+8,v[2]); scene.add(sp); threeState.markers.push(sp); });
 }
 function animate(){ if(!threeState) return; requestAnimationFrame(animate); threeState.ctl.update(); threeState.ren.render(threeState.scene, threeState.cam); }
+/* ---------- OSM runtime fetch (pattern adapted from the user's OSMCityScout, MIT) ---------- */
+let OSMDATA={}, OSMSTATUS={};
+function globalPx(lat,lon){ const n=16384; const gx=(lon+180)/360*n*256; const r=lat*Math.PI/180; const gy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n*256; return [gx,gy]; }
+function cropOrigin(lat,lon){ const g=globalPx(lat,lon); const cx=Math.floor(g[0]), cy=Math.floor(g[1]); const tx=Math.floor(cx/256), ty=Math.floor(cy/256); const px=cx-(tx-1)*256, py=cy-(ty-1)*256; const left=Math.max(0,Math.min(768-512,px-256)), top=Math.max(0,Math.min(768-512,py-256)); return [(tx-1)*256+left,(ty-1)*256+top]; }
+function toGrid(lat,lon,origin){ const g=globalPx(lat,lon); return [(g[0]-origin[0])/512*127,(g[1]-origin[1])/512*127]; }
+function simplifyPts(pts){ if(pts.length<=2) return pts; const out=[pts[0]]; for(let i=1;i<pts.length-1;i++){ const a=out[out.length-1]; if(Math.hypot(pts[i][0]-a[0],pts[i][1]-a[1])>=1.6) out.push(pts[i]); } out.push(pts[pts.length-1]); return out; }
+const OVERPASS_SERVERS=[{name:'private.coffee',url:'https://overpass.private.coffee/api/interpreter'},{name:'VK Maps',url:'https://maps.mail.ru/osm/tools/overpass/api/interpreter'},{name:'overpass-api.de',url:'https://overpass-api.de/api/interpreter'}];
+async function fetchOverpass(query){ let lastErr=null;
+  for(const sv of OVERPASS_SERVERS){ const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),20000);
+    try{ const resp=await fetch(sv.url,{method:'POST',body:'data='+encodeURIComponent(query),signal:ctrl.signal,mode:'cors',credentials:'omit'});
+      if(!resp.ok) throw new Error('HTTP '+resp.status); const j=await resp.json(); if(!Array.isArray(j&&j.elements)) throw new Error('bad response'); return {elements:j.elements, server:sv.name};
+    }catch(e){ lastErr=e; } finally{ clearTimeout(to); } }
+  throw lastErr||new Error('overpass failed'); }
+function updateBadge(){ const m=DEM[curBattle].meta; let osmMsg='川・道: 模式線'; const st=OSMSTATUS[curBattle], d=OSMDATA[curBattle];
+  if(st==='loading') osmMsg='川・道: OSMから読み込み中…'; else if(d) osmMsg='川 '+(d.waterways.length)+'本・道 '+(d.highways.length)+'本: OSM実線'+(st&&st.startsWith('ok:')?'（'+st.slice(3)+'）':st==='cache'?'（保存分）':''); else if(st==='fail') osmMsg='川・道: OSM取得に失敗したため模式線';
+  $("#stageBadge").textContent='地形: 地理院DEM10B実データ / 標高 '+m.min+'〜'+m.max+'m / '+osmMsg; }
+async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=BATTLES[bid]; OSMSTATUS[bid]='loading'; if(bid===curBattle) updateBadge();
+  const cacheKey='battlelab-osm:'+bid;
+  try{ const sx=localStorage.getItem(cacheKey); if(sx){ const x=JSON.parse(sx); if(Date.now()-x.time<24*3600*1000){ OSMDATA[bid]=x.data; OSMSTATUS[bid]='cache'; if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } return; } } }catch(e){}
+  const q='[out:json][timeout:25];(way["waterway"](around:2400,'+B.lat+','+B.lon+');way["highway"](around:2400,'+B.lat+','+B.lon+');way["natural"="water"](around:2400,'+B.lat+','+B.lon+'););out geom;';
+  try{ const res=await fetchOverpass(q); const origin=cropOrigin(B.lat,B.lon); const out={waterways:[],highways:[],waters:[],server:res.server};
+    for(const e of res.elements){ if(!e.geometry||e.geometry.length<2) continue; const pts=simplifyPts(e.geometry.map(g=>toGrid(g.lat,g.lon,origin))); if(!pts.some(p=>p[0]>-5&&p[0]<132&&p[1]>-5&&p[1]<132)) continue; const item={name:(e.tags&&e.tags.name)||'',pts}; if(e.tags&&e.tags.waterway) out.waterways.push(item); else if(e.tags&&e.tags.highway) out.highways.push(item); else if(e.tags&&e.tags.natural==='water') out.waters.push(item); }
+    OSMDATA[bid]=out; OSMSTATUS[bid]='ok:'+res.server; try{ localStorage.setItem(cacheKey,JSON.stringify({time:Date.now(),data:out})); }catch(e){}
+  }catch(e){ OSMSTATUS[bid]='fail'; }
+  if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } }
 /* ---------- wiring ---------- */
-document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); });
+document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#viewSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curView=b.dataset.v;
   $("#view3d").style.display = curView==="3d"?"block":"none"; $("#view2d").style.display = curView==="2d"?"block":"none"; if(curView==="2d") draw2D(); });
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#resolve").onclick=resolveBattle;
 $("#exSlider").value=BATTLES[curBattle].exDefault;
-renderPanel(); draw2D(); init3D();
+renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
 </script>
 </body>
 </html>
