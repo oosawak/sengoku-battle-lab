@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.7</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.8</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -29,6 +29,11 @@
   #toTactics .tactic .t{font-size:13.5px}
   #toTactics .tactic .m{font-size:11.5px}
   #toResolve{width:100%;margin-top:8px;background:var(--gold);color:#241f10;font-weight:700;border:none;border-radius:9px;padding:10px;font-size:14.5px;cursor:pointer}
+  #toToggle{background:#221e15;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  #toCompact{display:none;font-size:13px;color:var(--ink)}
+  #tacticOverlay.collapsed #toTactics, #tacticOverlay.collapsed #toResolve{display:none}
+  #tacticOverlay.collapsed #toCompact{display:block}
+  #tacticOverlay.collapsed .to-head{margin-bottom:4px}
   #stageStatus{position:absolute;top:10px;left:10px;z-index:6;max-width:72%;background:rgba(14,12,9,.9);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;color:var(--ink)}
   #resultOverlay{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,12,9,.94);border:1px solid var(--gold);border-radius:12px;padding:12px 14px;max-height:62%;overflow:auto;box-shadow:0 6px 24px rgba(0,0,0,.5)}
   #roHead{font-weight:700;font-size:16px;margin-bottom:6px}
@@ -58,7 +63,7 @@
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.7</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.8</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -79,7 +84,8 @@
     <div id="hint">ドラッグ: 回転 / ピンチ・ホイール: 拡大（自動回転は触ると止まります）</div>
     <div id="stageStatus" class="hiddenOv"><span id="stageStatusText"></span></div>
     <div id="tacticOverlay">
-      <div class="to-head"><span id="toTitle"></span><span id="toMeta"></span></div>
+      <div class="to-head"><span id="toTitle"></span><span style="display:flex;gap:8px;align-items:center"><span id="toMeta"></span><button id="toToggle">小さくする</button></span></div>
+      <div id="toCompact"></div>
       <div id="toTactics"></div>
       <button id="toResolve">決定する（この采配で進める）</button>
     </div>
@@ -202,6 +208,10 @@ function renderPanel(){
   renderOverlay(); syncOverlay();
 }
 function renderOverlay(){ const B=BATTLES[curBattle], P=B.persons[curPerson];
+  $("#tacticOverlay").classList.toggle("collapsed", overlayCollapsed);
+  $("#toToggle").textContent = overlayCollapsed ? "ひらく" : "小さくする";
+  const ct=P.tactics[curTactic], cd=dangerOf(ct);
+  $("#toCompact").textContent="選択中: "+ct.text+"（危険度 "+cd+"）— 地図を見ながら決められます";
   $("#toTitle").textContent=P.name+" の采配";
   $("#toMeta").textContent="兵種: "+P.troopLabel+" / 健康: "+healthMods().label;
   const tw=$("#toTactics"); tw.innerHTML="";
@@ -281,7 +291,7 @@ function draw2D(){
     ctx.textAlign="left"; ctx.textBaseline="alphabetic"; });
 }
 /* ---------- ターン進行（部隊の動き） ---------- */
-let turnPos=null, battlePhase="ready";
+let turnPos=null, battlePhase="ready", overlayCollapsed=false;
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function logTurn(msg){ const tl=$("#turnLog"); const d=document.createElement("div"); d.style.cssText="margin:3px 0;color:var(--sub);font-size:13.5px"; d.textContent=msg; tl.appendChild(d); }
 function syncPositions(){ if(curView==="2d") draw2D(); else if(threeState && threeState.unitGroups) positionUnitGroups(); }
@@ -405,6 +415,7 @@ $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#resolve").onclick=playBattle;
 $("#toResolve").onclick=playBattle;
+$("#toToggle").onclick=()=>{ overlayCollapsed=!overlayCollapsed; renderOverlay(); };
 $("#roAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; const rb=$("#resolve"); rb.disabled=false; rb.textContent="決定する（この采配で合戦を解決）"; syncOverlay(); };
 $("#roClose").onclick=()=>{ $("#resultOverlay").classList.add("hiddenOv"); };
 $("#exSlider").value=BATTLES[curBattle].exDefault;
