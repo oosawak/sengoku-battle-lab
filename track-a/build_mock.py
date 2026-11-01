@@ -23,7 +23,7 @@ html = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.14</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.15</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; --gold:#d9a441; }
@@ -109,7 +109,7 @@ html = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.14</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.15</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -136,17 +136,6 @@ html = r"""<!DOCTYPE html>
     <div id="shCompact"></div>
     <div class="sheet-body" id="shBody">
       <div class="fold">
-        <button class="fold-head" data-fold="foldPerson">武将・健康 △</button>
-        <div class="fold-body" id="foldPerson">
-          <div class="seg" id="personSeg"></div>
-          <div class="stats" id="personStats" style="margin-top:8px"></div>
-          <label class="lbl">健康（決定003の状態語）</label>
-          <select id="healthSel">
-            <option value="good">健やか</option><option value="bad">不調</option><option value="critical">重篤</option>
-          </select>
-        </div>
-      </div>
-      <div class="fold">
         <button class="fold-head" data-fold="foldInfo">合戦情報・凡例 △</button>
         <div class="fold-body" id="foldInfo">
           <h3 id="battleTitle" style="margin:2px 0 6px"></h3>
@@ -155,6 +144,17 @@ html = r"""<!DOCTYPE html>
           <label class="lbl">地形の縦誇張（3D）: <span id="exVal"></span></label>
           <input type="range" id="exSlider" min="1" max="10" step="0.5" value="6">
           <p class="note" style="margin-top:10px">危険度は設計メモv0.1の試作式: 合戦基礎＋役目危険＋敵優勢 − 実効武勇×0.25 − 知略×0.15 ＋健康補正＋地形修正。討死は危険度50以上でのみ起こりえます。数値はすべて調整用の試作値です。</p>
+        </div>
+      </div>
+      <div class="fold">
+        <button class="fold-head" data-fold="foldPerson">武将・健康 △</button>
+        <div class="fold-body" id="foldPerson">
+          <div class="seg" id="personSeg"></div>
+          <div class="stats" id="personStats" style="margin-top:8px"></div>
+          <label class="lbl">健康（決定003の状態語）</label>
+          <select id="healthSel">
+            <option value="good">健やか</option><option value="bad">不調</option><option value="critical">重篤</option>
+          </select>
         </div>
       </div>
       <div class="fold">
@@ -297,8 +297,10 @@ function resolveBattle(){
   else if(r < deathP+injuryP+captureP){ const branches=["身代金・人質交換で帰還（貫を支払い、数か月が経過）","捕えた側への仕官に応じる（一生の分岐: 所属が変わる）","幽閉で年月が過ぎる（敵将との関係イベントへ）"]; const br=branches[Math.floor(Math.random()*branches.length)];
     out = "【捕虜】\n敗北の中で捕らえられた。行き先は「"+br+"」。\n処刑はごく稀な分岐として別に置き、ここでは発生しませんでした（方針メモ004）。"; }
   else { out = "【生還・手柄】\n"+t.ok+"\n効果: 評判 +"+t.merit+" / flag: "+curBattle+"-"+curPerson+"-"+curTactic; }
+  const bd="判定内訳（試作値）: 危険度 "+d+" / 討死 "+deathP.toFixed(1)+"% / 負傷 "+injuryP.toFixed(1)+"% / 捕虜 "+captureP+"% / 乱数 "+r.toFixed(1);
   const el=$("#result"); el.style.display="block";
-  el.textContent = out+"\n—\n判定内訳（試作値）: 危険度 "+d+" / 討死 "+deathP.toFixed(1)+"% / 負傷 "+injuryP.toFixed(1)+"% / 捕虜 "+captureP+"% / 乱数 "+r.toFixed(1);
+  el.textContent = bd;
+  logResultEntry("■ 結果 — 采配「"+t.text+"」\n"+out+"\n"+bd);
   const lines=out.split("\n"); $("#shRoHead").textContent=lines[0]; $("#shRoBody").textContent=lines.slice(1).join("\n");
 }
 /* ---------- 2D ---------- */
@@ -356,6 +358,7 @@ function draw2D(){
 let turnPos=null, battlePhase="intro", overlayCollapsed=false;
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function logTurn(msg){ const tl=$("#turnLog"); const d=document.createElement("div"); d.style.cssText="margin:3px 0;color:var(--sub);font-size:13.5px"; d.textContent=msg; tl.appendChild(d); }
+function logResultEntry(text){ const tl=$("#turnLog"); const d=document.createElement("div"); d.style.cssText="margin:8px 0 4px;background:#241d10;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;padding:8px 10px;font-size:13.5px;line-height:1.75;white-space:pre-wrap;color:var(--ink)"; d.textContent=text; tl.appendChild(d); }
 function syncPositions(){ if(curView==="2d") draw2D(); else if(threeState && threeState.unitGroups) positionUnitGroups(); }
 function positionUnitGroups(){ threeState.unitGroups.forEach((rec,i)=>{ const v=threeState.toXYZ(turnPos[i][0], turnPos[i][1]); rec.ug.position.set(v[0], v[1]-4, v[2]); }); }
 async function animateTurns(){ const B=BATTLES[curBattle]; turnPos=B.units.map(u=>[u.gx,u.gy]); syncPositions();
@@ -375,6 +378,7 @@ async function playBattle(){ if(battlePhase==="playing") return; if(battlePhase=
   if(threeState && threeState.ctl) threeState.ctl.autoRotate=false;
   setFold("foldTactics", true);
   setStatus("采配「"+BATTLES[curBattle].persons[curPerson].tactics[curTactic].text+"」— 合戦が始まります");
+  logTurn("采配「"+BATTLES[curBattle].persons[curPerson].tactics[curTactic].text+"」（危険度 "+dangerOf(BATTLES[curBattle].persons[curPerson].tactics[curTactic])+"）で合戦開始。");
   await animateTurns();
   battlePhase="done"; rb.disabled=false; resolveBattle(); syncOverlay(); }
 /* ---------- 3D (three.js, 同梱vendor) ---------- */
@@ -479,12 +483,14 @@ document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#shDecide").onclick=playBattle;
-$("#startBtn").onclick=()=>{ battlePhase="ready"; setFold("foldInfo", true); setFold("foldPerson", true); setFold("foldTactics", false); setFold("foldLog", false); syncOverlay(); };
+$("#startBtn").onclick=()=>{ battlePhase="ready"; applyDefaultFolds(); syncOverlay(); };
 $("#shToggle").onclick=()=>{ overlayCollapsed=!overlayCollapsed; renderOverlay(); };
+function isPC(){ return window.matchMedia("(min-width: 1024px)").matches; }
+function applyDefaultFolds(){ const pc=isPC(); setFold("foldInfo", true); setFold("foldPerson", pc); setFold("foldTactics", pc); setFold("foldLog", pc); }
 function setFold(id, open){ const f=document.getElementById(id); if(!f) return; f.classList.toggle("hiddenOv", !open);
   document.querySelectorAll(".fold-head").forEach(h=>{ if(h.dataset.fold===id) h.textContent=h.textContent.replace(/▽|△$/, open?"△":"▽"); }); }
 document.querySelectorAll(".fold-head").forEach(b=>b.onclick=()=>{ const f=document.getElementById(b.dataset.fold); const nowHidden=f.classList.toggle("hiddenOv"); b.textContent=b.textContent.replace(/▽|△$/, nowHidden?"▽":"△");
-  if(b.dataset.fold==="foldTactics" && !nowHidden){ setFold("foldInfo", false); setFold("foldPerson", false); } });
+  if(b.dataset.fold==="foldTactics" && !nowHidden && !isPC()){ setFold("foldInfo", false); setFold("foldPerson", false); } });
 $("#shAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; syncOverlay(); };
 $("#exSlider").value=BATTLES[curBattle].exDefault;
 renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
