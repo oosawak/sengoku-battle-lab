@@ -23,7 +23,7 @@ html = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.1</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.2</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -38,6 +38,9 @@ html = r"""<!DOCTYPE html>
   #stage{position:relative;background:#0d0c09;border:1px solid var(--line);border-radius:10px;min-height:420px;overflow:hidden}
   #view3d,#view2d{width:100%;height:520px;display:block}
   #view2d{display:none}
+  #compass{position:absolute;top:10px;right:10px;width:52px;height:52px;border-radius:50%;background:rgba(20,18,13,.85);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;color:var(--sub)}
+  #needle{font-size:18px;line-height:1;color:var(--accent);display:block}
+  #hint{position:absolute;right:10px;bottom:10px;background:rgba(20,18,13,.8);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11.5px;color:var(--sub)}
   .badge{position:absolute;left:10px;bottom:10px;background:rgba(20,18,13,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--sub)}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
   .panel h2{font-size:15px;margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
@@ -58,7 +61,7 @@ html = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.1</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.2</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -75,6 +78,8 @@ html = r"""<!DOCTYPE html>
   <section id="stage">
     <div id="view3d"></div>
     <canvas id="view2d" width="900" height="620"></canvas>
+    <div id="compass"><span id="needle">↑</span><span>北</span></div>
+    <div id="hint">ドラッグ: 回転 / ピンチ・ホイール: 拡大（自動回転は触ると止まります）</div>
     <div class="badge" id="stageBadge"></div>
   </section>
   <aside class="panel">
@@ -234,16 +239,19 @@ async function init3D(){
     const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
     const host=$("#view3d"); const W=host.clientWidth||900, H=520;
     const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0d0c09);
-    const cam=new THREE.PerspectiveCamera(50, W/H, 0.1, 2000); cam.position.set(0,150,210);
+    const cam=new THREE.PerspectiveCamera(50, W/H, 0.1, 2000); cam.position.set(-30,92,188);
     const ren=new THREE.WebGLRenderer({antialias:true}); ren.setSize(W,H); host.appendChild(ren.domElement);
-    const ctl=new OrbitControls(cam, ren.domElement); ctl.enableDamping=true;
+    const ctl=new OrbitControls(cam, ren.domElement); ctl.enableDamping=true; ctl.target.set(0,2,-8); ctl.maxPolarAngle=Math.PI*0.49; ctl.autoRotate=true; ctl.autoRotateSpeed=0.55; ctl.addEventListener('start',()=>{ ctl.autoRotate=false; });
+    scene.fog=new THREE.Fog(0x0d0c09, 300, 560);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const sun=new THREE.DirectionalLight(0xfff2d8, 1.6); sun.position.set(-80,140,50); scene.add(sun);
     threeState={THREE,scene,cam,ren,ctl,mesh:null,markers:[]};
     buildTerrain(); animate();
   }catch(e){ $("#view3d").innerHTML='<div style="padding:20px;color:#b8ab8a;font-size:14px;line-height:1.8">3Dライブラリを読み込めませんでした（WebGLが使えない環境の可能性があります）。「2D等高線」表示はそのまま使えます。</div>'; }
 }
 function buildTerrain(){
   if(!threeState) return; const {THREE,scene}=threeState;
-  if(threeState.mesh){ scene.remove(threeState.mesh); threeState.mesh.geometry.dispose(); }
+  if(threeState.mesh){ scene.remove(threeState.mesh); threeState.mesh.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
   threeState.markers.forEach(m=>scene.remove(m)); threeState.markers=[];
   const data=DEM[curBattle], N=data.meta.grid, ev=data.elev, min=data.meta.min, max=data.meta.max;
   const ex=parseFloat($("#exSlider").value), SIZE=200, yScale=(SIZE/3900)*ex;
@@ -253,8 +261,12 @@ function buildTerrain(){
   for(let k=0;k<pos.count;k++){ const i=k%N, j=Math.floor(k/N); const h=ev[j][i]; pos.setY(k,(h-min)*yScale);
     const c=cLow.clone().lerp(cHigh,(h-min)/(max-min)); colors.push(c.r,c.g,c.b); }
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3)); geo.computeVertexNormals();
-  const mat=new THREE.MeshBasicMaterial({wireframe:true, vertexColors:true, transparent:true, opacity:0.9});
-  const mesh=new THREE.Mesh(geo,mat); scene.add(mesh); threeState.mesh=mesh;
+  const group=new THREE.Group();
+  const surf=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({vertexColors:true, roughness:1, metalness:0, flatShading:true}));
+  surf.position.y=-0.45; group.add(surf);
+  const wire=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({wireframe:true, vertexColors:true, transparent:true, opacity:0.55}));
+  group.add(wire);
+  scene.add(group); threeState.mesh=group;
   const toXYZ=(gx,gy)=>{ const h=ev[Math.round(gy)][Math.round(gx)]; return [ (gx/127-0.5)*SIZE, (h-min)*yScale+4, (gy/127-0.5)*SIZE ]; };
   const B=BATTLES[curBattle];
   const osm3=OSMDATA[curBattle];
@@ -268,7 +280,8 @@ function buildTerrain(){
     cx.fillStyle="rgba(10,9,6,0.75)"; cx.fillRect(0,0,256,56); cx.fillStyle="#ece2c8"; cx.font="24px sans-serif"; cx.textAlign="center"; cx.fillText(u.name,128,37);
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true})); sp.scale.set(38,8.3,1); sp.position.set(v[0],v[1]+8,v[2]); scene.add(sp); threeState.markers.push(sp); });
 }
-function animate(){ if(!threeState) return; requestAnimationFrame(animate); threeState.ctl.update(); threeState.ren.render(threeState.scene, threeState.cam); }
+function animate(){ if(!threeState) return; requestAnimationFrame(animate); threeState.ctl.update(); threeState.ren.render(threeState.scene, threeState.cam);
+  const nd=document.getElementById("needle"); if(nd){ const c=threeState.cam.position; nd.style.transform='rotate('+(Math.atan2(c.x,c.z))+'rad)'; } }
 /* ---------- OSM runtime fetch (pattern adapted from the user's OSMCityScout, MIT) ---------- */
 let OSMDATA=OSM_BAKED, OSMSTATUS={hitotoribashi:'baked', suriagehara:'baked'};
 function globalPx(lat,lon){ const n=16384; const gx=(lon+180)/360*n*256; const r=lat*Math.PI/180; const gy=(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n*256; return [gx,gy]; }
