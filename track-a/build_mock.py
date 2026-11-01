@@ -23,7 +23,7 @@ html = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.5</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.6</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -40,6 +40,23 @@ html = r"""<!DOCTYPE html>
   #view2d{display:none}
   #compass{position:absolute;top:10px;right:10px;width:52px;height:52px;border-radius:50%;background:rgba(20,18,13,.85);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;color:var(--sub)}
   #needle{font-size:18px;line-height:1;color:var(--accent);display:block}
+  #tacticOverlay{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,12,9,.93);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #tacticOverlay .to-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  #toTitle{font-weight:700;font-size:14.5px}
+  #toMeta{font-size:12px;color:var(--sub)}
+  #toTactics{display:grid;gap:6px}
+  #toTactics .tactic{padding:8px 10px}
+  #toTactics .tactic .t{font-size:13.5px}
+  #toTactics .tactic .m{font-size:11.5px}
+  #toResolve{width:100%;margin-top:8px;background:var(--gold);color:#241f10;font-weight:700;border:none;border-radius:9px;padding:10px;font-size:14.5px;cursor:pointer}
+  #stageStatus{position:absolute;top:10px;left:10px;z-index:6;max-width:72%;background:rgba(14,12,9,.9);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;color:var(--ink)}
+  #resultOverlay{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,12,9,.94);border:1px solid var(--gold);border-radius:12px;padding:12px 14px;max-height:62%;overflow:auto;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #roHead{font-weight:700;font-size:16px;margin-bottom:6px}
+  #roBody{font-size:13.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap}
+  .ro-btns{display:flex;gap:8px;margin-top:10px}
+  .ro-btns button{flex:1;border-radius:9px;padding:9px;font-size:13.5px;cursor:pointer;border:1px solid var(--line);background:#221e15;color:var(--ink)}
+  .ro-btns #roAgain{background:var(--gold);color:#241f10;font-weight:700;border:none}
+  .hiddenOv{display:none !important}
   #hint{position:absolute;right:10px;bottom:10px;background:rgba(20,18,13,.8);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11.5px;color:var(--sub)}
   .badge{position:absolute;left:10px;bottom:10px;background:rgba(20,18,13,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--sub)}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
@@ -61,7 +78,7 @@ html = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.5</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.6</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -80,6 +97,16 @@ html = r"""<!DOCTYPE html>
     <canvas id="view2d" width="900" height="620"></canvas>
     <div id="compass"><span id="needle">↑</span><span>北</span></div>
     <div id="hint">ドラッグ: 回転 / ピンチ・ホイール: 拡大（自動回転は触ると止まります）</div>
+    <div id="stageStatus" class="hiddenOv"><span id="stageStatusText"></span></div>
+    <div id="tacticOverlay">
+      <div class="to-head"><span id="toTitle"></span><span id="toMeta"></span></div>
+      <div id="toTactics"></div>
+      <button id="toResolve">この采配で進める</button>
+    </div>
+    <div id="resultOverlay" class="hiddenOv">
+      <div id="roHead"></div><div id="roBody"></div>
+      <div class="ro-btns"><button id="roAgain">もう一度（配置を戻す）</button><button id="roClose">閉じる</button></div>
+    </div>
     <div class="badge" id="stageBadge"></div>
   </section>
   <aside class="panel">
@@ -192,7 +219,22 @@ function renderPanel(){
     b.innerHTML = '<span class="t">'+t.text+'</span><span class="m">役目: '+t.role+'（'+t.src+'） / 手柄の期待: 評判+'+t.merit+taTxt+' / 危険度 <span class="danger '+bd[1]+'">'+d+"・"+bd[0]+'</span></span>';
     b.onclick=()=>{curTactic=i;renderPanel();}; tw.appendChild(b); });
   $("#exVal").textContent = "×"+$("#exSlider").value;
+  renderOverlay(); syncOverlay();
 }
+function renderOverlay(){ const B=BATTLES[curBattle], P=B.persons[curPerson];
+  $("#toTitle").textContent=P.name+" の采配";
+  $("#toMeta").textContent="兵種: "+P.troopLabel+" / 健康: "+healthMods().label;
+  const tw=$("#toTactics"); tw.innerHTML="";
+  P.tactics.forEach((t,i)=>{ const d=dangerOf(t), bd=band(d);
+    const b=document.createElement("button"); b.className="tactic"+(i===curTactic?" on":"");
+    const ta=troopAdj(t); const taTxt = ta!==0 ? ' / 騎馬補正 '+(ta>0?'+':'−')+Math.abs(ta) : '';
+    b.innerHTML='<span class="t">'+t.text+'</span><span class="m">'+t.role+taTxt+' / 危険度 <span class="danger '+bd[1]+'">'+d+"・"+bd[0]+'</span></span>';
+    b.onclick=()=>{ curTactic=i; renderPanel(); }; tw.appendChild(b); }); }
+function setStatus(msg){ $("#stageStatusText").textContent=msg; }
+function syncOverlay(){ const ready=battlePhase==="ready", playing=battlePhase==="playing", done=battlePhase==="done";
+  $("#tacticOverlay").classList.toggle("hiddenOv", !ready);
+  $("#stageStatus").classList.toggle("hiddenOv", !playing);
+  if(done) $("#resultOverlay").classList.remove("hiddenOv"); else $("#resultOverlay").classList.add("hiddenOv"); }
 function resolveBattle(){
   const B=BATTLES[curBattle], P=B.persons[curPerson], t=P.tactics[curTactic], d=dangerOf(t);
   const deathP = d>=50 ? Math.min(35,(d-38)*0.35) : 0;
@@ -205,6 +247,7 @@ function resolveBattle(){
   else { out = "【生還・手柄】\n"+t.ok+"\n効果: 評判 +"+t.merit+" / flag: "+curBattle+"-"+curPerson+"-"+curTactic; }
   const el=$("#result"); el.style.display="block";
   el.textContent = out+"\n—\n判定内訳（試作値）: 危険度 "+d+" / 討死 "+deathP.toFixed(1)+"% / 負傷 "+injuryP.toFixed(1)+"% / 捕虜 "+captureP+"% / 乱数 "+r.toFixed(1);
+  const lines=out.split("\n"); $("#roHead").textContent=lines[0]; $("#roBody").textContent=lines.slice(1).join("\n");
 }
 /* ---------- 2D ---------- */
 function draw2D(){
@@ -272,13 +315,14 @@ async function animateTurns(){ const B=BATTLES[curBattle]; turnPos=B.units.map(u
     await new Promise(res=>{ const step=()=>{ const k=Math.min(1,(performance.now()-t0)/dur); const e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
       turnPos=B.units.map((u,i)=>[from[i][0]+(to[i][0]-from[i][0])*e, from[i][1]+(to[i][1]-from[i][1])*e]); syncPositions();
       if(k<1) requestAnimationFrame(step); else res(); }; step(); });
-    logTurn("第"+t+"ターン — "+(texts[t-1]||"")); await sleep(300); } }
-function resetBattlePositions(){ turnPos=null; battlePhase="ready"; if(curView==="2d") draw2D(); else buildTerrain(); }
+    logTurn("第"+t+"ターン — "+(texts[t-1]||"")); setStatus("第"+t+"ターン — "+(texts[t-1]||"")); await sleep(300); } }
+function resetBattlePositions(){ turnPos=null; battlePhase="ready"; if(curView==="2d") draw2D(); else buildTerrain(); syncOverlay(); }
 async function playBattle(){ if(battlePhase==="playing") return; if(battlePhase==="done") resetBattlePositions();
   battlePhase="playing"; const rb=$("#resolve"); rb.disabled=true; rb.textContent="合戦中…（ターンが進んでいます）";
-  $("#turnLog").innerHTML=""; $("#result").style.display="none";
+  $("#turnLog").innerHTML=""; $("#result").style.display="none"; syncOverlay();
+  setStatus("采配「"+BATTLES[curBattle].persons[curPerson].tactics[curTactic].text+"」— 合戦が始まります");
   await animateTurns();
-  battlePhase="done"; rb.disabled=false; rb.textContent="もう一度（配置を戻して再戦）"; resolveBattle(); }
+  battlePhase="done"; rb.disabled=false; rb.textContent="もう一度（配置を戻して再戦）"; resolveBattle(); syncOverlay(); }
 /* ---------- 3D (three.js, 同梱vendor) ---------- */
 function flagTexture(u, THREE){ const isGen=u.troop==="general"; const c=document.createElement("canvas"); c.width=isGen?96:160; c.height=isGen?256:104; const x=c.getContext("2d");
   x.fillStyle=u.side==="ally"?"#2c5f9e":"#9e3b2c"; x.fillRect(0,0,c.width,c.height);
@@ -380,6 +424,9 @@ document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#resolve").onclick=playBattle;
+$("#toResolve").onclick=playBattle;
+$("#roAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; const rb=$("#resolve"); rb.disabled=false; rb.textContent="この采配で合戦を解決する"; syncOverlay(); };
+$("#roClose").onclick=()=>{ $("#resultOverlay").classList.add("hiddenOv"); };
 $("#exSlider").value=BATTLES[curBattle].exDefault;
 renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
 </script>
