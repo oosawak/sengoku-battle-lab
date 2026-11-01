@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.3</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.5</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -41,7 +41,7 @@
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.3</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.5</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -78,6 +78,7 @@
     <label class="lbl">地形の縦誇張（3D）: <span id="exVal"></span></label>
     <input type="range" id="exSlider" min="1" max="10" step="0.5" value="6">
     <button id="resolve">この采配で合戦を解決する</button>
+    <div id="turnLog" style="margin-top:10px"></div>
     <div id="result"></div>
     <p class="note" style="margin-top:12px">危険度は設計メモv0.1の試作式: 合戦基礎＋役目危険＋敵優勢 − 実効武勇×0.25 − 知略×0.15 ＋健康補正＋地形修正。討死は危険度50以上でのみ起こりえます。数値はすべて調整用の試作値です。</p>
   </aside>
@@ -141,6 +142,12 @@ const BATTLES = {
     }
   }
 };
+const UNIT_PATHS={
+ hitotoribashi:{ "伊達本隊・政宗":[[64,36],[66,33],[70,29],[74,25]], "成実隊":[[45,50],[49,46],[54,42],[59,38]], "鬼庭隊（殿）":[[59,60],[59,58],[60,56],[60,54]], "連合本隊・佐竹":[[66,99],[66,90],[65,82],[65,75]], "蘆名隊":[[37,93],[40,85],[44,78],[47,72]], "岩城隊":[[93,95],[88,87],[83,80],[79,74]] },
+ suriagehara:{ "伊達本隊・政宗":[[58,72],[58,65],[58,59],[59,54]], "成実隊（側撃）":[[28,54],[35,51],[42,47],[48,44]], "片倉隊":[[76,70],[73,64],[70,58],[68,53]], "蘆名本隊・義広":[[64,34],[64,39],[62,44],[60,48]], "金上隊":[[46,27],[47,33],[49,39],[51,44]], "佐瀬隊":[[84,30],[81,37],[77,43],[73,48]] } };
+const BATTLE_TURNS={
+ hitotoribashi:["連合軍が北上し、瀬戸川の線へ迫る。伊達勢は橋の北で迎える構え。","鬼庭の殿が橋の上で踏みとどまり、連合の先鋒と激しくぶつかる。本隊は退き始めた。","伊達勢は陣を収めて北へ退く。殿が最後まで橋を守り抜いた。"],
+ suriagehara:["蘆名勢が原へ進み出る。伊達勢は高みからその動きを見ている。","成実隊が西から回り込んで側面へ迫る。金上隊が伊達本隊へ向けて駆け下りる。","蘆名勢は崩れ、南へ退いていく。原の主導権は伊達へ移った。"] };
 let curBattle="hitotoribashi", curPerson="masamune", curTactic=0, curView="3d";
 const $=s=>document.querySelector(s);
 function healthMods(){ const h=$("#healthSel").value; return h==="good"?{buyu:0,danger:0,label:"健やか"}:h==="bad"?{buyu:-8,danger:4,label:"不調"}:{buyu:-20,danger:10,label:"重篤"}; }
@@ -212,7 +219,7 @@ function draw2D(){
     ctx.fillStyle="#cfe8ff"; ctx.font="12px sans-serif"; ctx.fillText(B.riverLabel, 14, H-34);
   }
   ctx.fillStyle="#b8ab8a"; ctx.fillText(B.northLabel, 14, 20); ctx.fillText(B.southLabel, 14, H-14);
-  B.units.forEach(u=>{ const x=u.gx/127*W, y=u.gy/127*H, R=13;
+  B.units.forEach((u,ui)=>{ const up=turnPos?turnPos[ui]:[u.gx,u.gy]; const x=up[0]/127*W, y=up[1]/127*H, R=13;
     // 兵種・役割で形を変える: 本隊=二重菱 / 主力=三角（敵方向） / 側撃=旗 / 殿=盾
     const fillC=u.side==="ally"?"#274b78":"#7e2f22";
     ctx.fillStyle=fillC; ctx.lineWidth=1.6; ctx.strokeStyle="#d9c68f";
@@ -230,7 +237,36 @@ function draw2D(){
     ctx.fillStyle="#ece2c8"; ctx.fillText(u.name, px0+pw/2, py0+ph/2+0.5);
     ctx.textAlign="left"; ctx.textBaseline="alphabetic"; });
 }
+/* ---------- ターン進行（部隊の動き） ---------- */
+let turnPos=null, battlePhase="ready";
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function logTurn(msg){ const tl=$("#turnLog"); const d=document.createElement("div"); d.style.cssText="margin:3px 0;color:var(--sub);font-size:13.5px"; d.textContent=msg; tl.appendChild(d); }
+function syncPositions(){ if(curView==="2d") draw2D(); else if(threeState && threeState.unitGroups) positionUnitGroups(); }
+function positionUnitGroups(){ threeState.unitGroups.forEach((rec,i)=>{ const v=threeState.toXYZ(turnPos[i][0], turnPos[i][1]); rec.ug.position.set(v[0], v[1]-4, v[2]); }); }
+async function animateTurns(){ const B=BATTLES[curBattle]; turnPos=B.units.map(u=>[u.gx,u.gy]); syncPositions();
+  logTurn("布陣完了。合戦が始まります。");
+  const texts=BATTLE_TURNS[curBattle]||[];
+  for(let t=1;t<=3;t++){ const from=turnPos.map(p=>p.slice());
+    const to=B.units.map(u=>{ const pa=(UNIT_PATHS[curBattle]||{})[u.name]; return pa?pa[t]:[u.gx,u.gy]; });
+    const t0=performance.now(), dur=1050;
+    await new Promise(res=>{ const step=()=>{ const k=Math.min(1,(performance.now()-t0)/dur); const e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      turnPos=B.units.map((u,i)=>[from[i][0]+(to[i][0]-from[i][0])*e, from[i][1]+(to[i][1]-from[i][1])*e]); syncPositions();
+      if(k<1) requestAnimationFrame(step); else res(); }; step(); });
+    logTurn("第"+t+"ターン — "+(texts[t-1]||"")); await sleep(300); } }
+function resetBattlePositions(){ turnPos=null; battlePhase="ready"; if(curView==="2d") draw2D(); else buildTerrain(); }
+async function playBattle(){ if(battlePhase==="playing") return; if(battlePhase==="done") resetBattlePositions();
+  battlePhase="playing"; const rb=$("#resolve"); rb.disabled=true; rb.textContent="合戦中…（ターンが進んでいます）";
+  $("#turnLog").innerHTML=""; $("#result").style.display="none";
+  await animateTurns();
+  battlePhase="done"; rb.disabled=false; rb.textContent="もう一度（配置を戻して再戦）"; resolveBattle(); }
 /* ---------- 3D (three.js, 同梱vendor) ---------- */
+function flagTexture(u, THREE){ const isGen=u.troop==="general"; const c=document.createElement("canvas"); c.width=isGen?96:160; c.height=isGen?256:104; const x=c.getContext("2d");
+  x.fillStyle=u.side==="ally"?"#2c5f9e":"#9e3b2c"; x.fillRect(0,0,c.width,c.height);
+  x.strokeStyle=isGen?"#e6c96a":"#ece2c8"; x.lineWidth=isGen?8:5; x.strokeRect(x.lineWidth/2,x.lineWidth/2,c.width-x.lineWidth,c.height-x.lineWidth);
+  x.fillStyle="#f6efdb"; x.textAlign="center"; x.textBaseline="middle"; x.font="bold "+(isGen?62:58)+"px sans-serif";
+  if(isGen){ x.fillText(u.mark, c.width/2, c.height/2-26); x.font="bold 25px sans-serif"; x.fillText("大将", c.width/2, c.height/2+42); }
+  else x.fillText(u.mark, c.width/2, c.height/2+2);
+  return new THREE.CanvasTexture(c); }
 let threeState=null;
 async function init3D(){
   try{
@@ -244,14 +280,14 @@ async function init3D(){
     scene.fog=new THREE.Fog(0x0d0c09, 300, 560);
     scene.add(new THREE.AmbientLight(0xffffff, 0.85));
     const sun=new THREE.DirectionalLight(0xfff2d8, 1.6); sun.position.set(-80,140,50); scene.add(sun);
-    threeState={THREE,scene,cam,ren,ctl,mesh:null,markers:[]};
+    threeState={THREE,scene,cam,ren,ctl,mesh:null,markers:[],flags:[],unitGroups:[],toXYZ:null};
     buildTerrain(); animate();
   }catch(e){ $("#view3d").innerHTML='<div style="padding:20px;color:#b8ab8a;font-size:14px;line-height:1.8">3Dライブラリを読み込めませんでした（WebGLが使えない環境の可能性があります）。「2D等高線」表示はそのまま使えます。</div>'; }
 }
 function buildTerrain(){
   if(!threeState) return; const {THREE,scene}=threeState;
   if(threeState.mesh){ scene.remove(threeState.mesh); threeState.mesh.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); }
-  threeState.markers.forEach(m=>scene.remove(m)); threeState.markers=[];
+  threeState.markers.forEach(m=>scene.remove(m)); threeState.markers=[]; threeState.flags=[]; threeState.unitGroups=[];
   const data=DEM[curBattle], N=data.meta.grid, ev=data.elev, min=data.meta.min, max=data.meta.max;
   const ex=parseFloat($("#exSlider").value), SIZE=200, yScale=(SIZE/3900)*ex;
   const geo=new THREE.PlaneGeometry(SIZE,SIZE,N-1,N-1); geo.rotateX(-Math.PI/2);
@@ -266,22 +302,31 @@ function buildTerrain(){
   const wire=new THREE.Mesh(geo, new THREE.MeshBasicMaterial({wireframe:true, vertexColors:true, transparent:true, opacity:0.55}));
   group.add(wire);
   scene.add(group); threeState.mesh=group;
-  const toXYZ=(gx,gy)=>{ const h=ev[Math.round(gy)][Math.round(gx)]; return [ (gx/127-0.5)*SIZE, (h-min)*yScale+4, (gy/127-0.5)*SIZE ]; };
+  const toXYZ=(gx,gy)=>{ const h=ev[Math.max(0,Math.min(127,Math.round(gy)))][Math.max(0,Math.min(127,Math.round(gx)))]; return [ (gx/127-0.5)*SIZE, (h-min)*yScale+4, (gy/127-0.5)*SIZE ]; };
+  threeState.toXYZ=toXYZ;
   const B=BATTLES[curBattle];
   const osm3=OSMDATA[curBattle];
   const addLine=(pts,color)=>{ if(!pts||pts.length<2) return; const v=pts.map(p=>{ const gx=Math.max(0,Math.min(127,Math.round(p[0]))), gy=Math.max(0,Math.min(127,Math.round(p[1]))); const h=ev[gy][gx]; return new THREE.Vector3((p[0]/127-0.5)*SIZE,(h-min)*yScale+1.5,(p[1]/127-0.5)*SIZE); }); const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({color})); scene.add(line); threeState.markers.push(line); };
   if(osm3){ osm3.highways.forEach(w=>addLine(w.pts,0x8a8064)); osm3.waters.forEach(w=>addLine(w.pts,0x4d7fa6)); osm3.waterways.forEach(w=>addLine(w.pts,0x7fc4ff)); }
   else { addLine(B.river,0x7fc4ff); }
   B.units.forEach(u=>{ const v=toXYZ(u.gx,u.gy);
+    const ug=new THREE.Group(); ug.position.set(v[0], v[1]-4, v[2]); scene.add(ug); threeState.markers.push(ug);
     const geo3 = u.troop==="general" ? new THREE.CylinderGeometry(3.9,3.9,2.4,8) : u.troop==="teppo" ? new THREE.BoxGeometry(4.8,2.8,4.8) : u.troop==="yumi" ? new THREE.TorusGeometry(2.7,0.95,8,18,Math.PI) : u.troop==="yari" ? new THREE.ConeGeometry(2.9,5.6,6) : new THREE.OctahedronGeometry(3.4);
     const s=new THREE.Mesh(geo3, new THREE.MeshBasicMaterial({color:u.side==="ally"?0x8fc1ff:0xff9d8a}));
-    if(u.troop==="yumi") s.rotation.z=0;
-    s.position.set(v[0],v[1],v[2]); scene.add(s); threeState.markers.push(s);
+    s.position.set(0,4,0); ug.add(s);
     const cv=document.createElement("canvas"); cv.width=256; cv.height=56; const cx=cv.getContext("2d");
     cx.fillStyle="rgba(10,9,6,0.75)"; cx.fillRect(0,0,256,56); cx.fillStyle="#ece2c8"; cx.font="24px sans-serif"; cx.textAlign="center"; cx.fillText(u.name,128,37);
-    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true})); sp.scale.set(38,8.3,1); sp.position.set(v[0],v[1]+8,v[2]); scene.add(sp); threeState.markers.push(sp); });
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true})); sp.scale.set(38,8.3,1); sp.position.set(0,12,0); ug.add(sp);
+    const isGen=u.troop==="general"; const poleH=isGen?17:11.5, fw=isGen?3.4:6.4, fh=isGen?10.5:4.1;
+    const fg=new THREE.Group(); fg.position.set(2.6,0,0);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,poleH,6), new THREE.MeshBasicMaterial({color:0xd8cba6})); pole.position.y=poleH/2; fg.add(pole);
+    const flag=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh), new THREE.MeshBasicMaterial({map:flagTexture(u,THREE), side:THREE.DoubleSide})); flag.position.set(fw/2, poleH-fh/2-(isGen?0.4:0.6), 0); fg.add(flag);
+    fg.userData.baseRot=((u.gx*7+u.gy*13)%6)-3; fg.rotation.y=fg.userData.baseRot; ug.add(fg); threeState.flags.push(fg);
+    threeState.unitGroups.push({u, ug}); });
+  if(turnPos) positionUnitGroups();
 }
 function animate(){ if(!threeState) return; requestAnimationFrame(animate); threeState.ctl.update(); threeState.ren.render(threeState.scene, threeState.cam);
+  const tt2=performance.now()/1000; (threeState.flags||[]).forEach((f,i)=>{ f.rotation.y=f.userData.baseRot + Math.sin(tt2*0.9+i*1.7)*0.14; });
   const nd=document.getElementById("needle"); if(nd){ const c=threeState.cam.position; nd.style.transform='rotate('+(Math.atan2(c.x,c.z))+'rad)'; } }
 /* ---------- OSM runtime fetch (pattern adapted from the user's OSMCityScout, MIT) ---------- */
 let OSMDATA=OSM_BAKED, OSMSTATUS={hitotoribashi:'baked', suriagehara:'baked'};
@@ -309,12 +354,12 @@ async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=
   }catch(e){ OSMSTATUS[bid]='fail'; }
   if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } }
 /* ---------- wiring ---------- */
-document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
+document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; const rb2=$("#resolve"); rb2.disabled=false; rb2.textContent="この采配で合戦を解決する"; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#viewSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curView=b.dataset.v;
   $("#view3d").style.display = curView==="3d"?"block":"none"; $("#view2d").style.display = curView==="2d"?"block":"none"; if(curView==="2d") draw2D(); });
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
-$("#resolve").onclick=resolveBattle;
+$("#resolve").onclick=playBattle;
 $("#exSlider").value=BATTLES[curBattle].exDefault;
 renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
 </script>
