@@ -112,12 +112,12 @@ const BATTLES = {
     river: [[0,66],[20,62],[42,65],[63,60],[84,63],[127,58]],
     lat:37.49831, lon:140.38847, riverLabel: "瀬戸川・人取橋（模式線）", northLabel: "北: 二本松方面", southLabel: "南: 本宮・連合軍の来た道",
     units: [
-      {name:"伊達本隊・政宗", side:"ally", gx:64, gy:36},
-      {name:"成実隊", side:"ally", gx:45, gy:50},
-      {name:"鬼庭隊（殿）", side:"ally", gx:59, gy:60},
-      {name:"連合本隊・佐竹", side:"enemy", gx:66, gy:99},
-      {name:"蘆名隊", side:"enemy", gx:37, gy:93},
-      {name:"岩城隊", side:"enemy", gx:93, gy:95},
+      {name:"伊達本隊・政宗", mark:"政", side:"ally", gx:64, gy:36},
+      {name:"成実隊", mark:"実", side:"ally", gx:45, gy:50},
+      {name:"鬼庭隊（殿）", mark:"鬼", side:"ally", gx:59, gy:60},
+      {name:"連合本隊・佐竹", mark:"佐", side:"enemy", gx:66, gy:99},
+      {name:"蘆名隊", mark:"蘆", side:"enemy", gx:37, gy:93},
+      {name:"岩城隊", mark:"岩", side:"enemy", gx:93, gy:95},
     ],
     persons: {
       masamune: { name:"伊達政宗", age:18, buyu:72, chiryaku:86, tactics:[
@@ -139,12 +139,12 @@ const BATTLES = {
     river: [[0,96],[30,88],[58,90],[90,82],[127,86]],
     lat:37.56214, lon:140.06633, riverLabel: "日橋川方面（模式線）", northLabel: "北: 磐梯山", southLabel: "南: 猪苗代湖",
     units: [
-      {name:"伊達本隊・政宗", side:"ally", gx:58, gy:72},
-      {name:"成実隊（側撃）", side:"ally", gx:28, gy:54},
-      {name:"片倉隊", side:"ally", gx:76, gy:70},
-      {name:"蘆名本隊・義広", side:"enemy", gx:64, gy:34},
-      {name:"金上隊", side:"enemy", gx:46, gy:27},
-      {name:"佐瀬隊", side:"enemy", gx:84, gy:30},
+      {name:"伊達本隊・政宗", mark:"政", side:"ally", gx:58, gy:72},
+      {name:"成実隊（側撃）", mark:"実", side:"ally", gx:28, gy:54},
+      {name:"片倉隊", mark:"片", side:"ally", gx:76, gy:70},
+      {name:"蘆名本隊・義広", mark:"義", side:"enemy", gx:64, gy:34},
+      {name:"金上隊", mark:"金", side:"enemy", gx:46, gy:27},
+      {name:"佐瀬隊", mark:"瀬", side:"enemy", gx:84, gy:30},
     ],
     persons: {
       masamune: { name:"伊達政宗", age:22, buyu:72, chiryaku:86, tactics:[
@@ -228,8 +228,16 @@ function draw2D(){
     ctx.fillStyle="#cfe8ff"; ctx.font="12px sans-serif"; ctx.fillText(B.riverLabel, 14, H-34);
   }
   ctx.fillStyle="#b8ab8a"; ctx.fillText(B.northLabel, 14, 20); ctx.fillText(B.southLabel, 14, H-14);
-  B.units.forEach(u=>{ const x=u.gx/127*W, y=u.gy/127*H; ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.fillStyle=u.side==="ally"?"#2c5f9e":"#9e3b2c"; ctx.fill(); ctx.strokeStyle="#ece2c8"; ctx.stroke();
-    ctx.fillStyle="#ece2c8"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText(u.name, x, y-14); ctx.textAlign="left"; });
+  B.units.forEach(u=>{ const x=u.gx/127*W, y=u.gy/127*H, R=13;
+    // 菱形マーカー（軍配・陣旗のイメージ）: 丸の「可愛さ」を消し、武将の頭文字を入れる
+    ctx.beginPath(); ctx.moveTo(x,y-R); ctx.lineTo(x+R,y); ctx.lineTo(x,y+R); ctx.lineTo(x-R,y); ctx.closePath();
+    ctx.fillStyle=u.side==="ally"?"#274b78":"#7e2f22"; ctx.fill(); ctx.lineWidth=1.6; ctx.strokeStyle="#d9c68f"; ctx.stroke();
+    ctx.fillStyle="#f2e9d4"; ctx.font="bold 12.5px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(u.mark||"", x, y+0.5);
+    // 名前は小さな陣幕風ラベルに
+    ctx.font="11.5px sans-serif"; const tw=ctx.measureText(u.name).width, pw=tw+12, ph=17, px0=Math.max(2,Math.min(W-pw-2, x-pw/2)), py0=y-R-ph-3;
+    ctx.fillStyle="rgba(12,10,7,0.82)"; ctx.fillRect(px0,py0,pw,ph); ctx.strokeStyle="rgba(217,198,143,0.6)"; ctx.lineWidth=1; ctx.strokeRect(px0,py0,pw,ph);
+    ctx.fillStyle="#ece2c8"; ctx.fillText(u.name, px0+pw/2, py0+ph/2+0.5);
+    ctx.textAlign="left"; ctx.textBaseline="alphabetic"; });
 }
 /* ---------- 3D (three.js, 同梱vendor) ---------- */
 let threeState=null;
