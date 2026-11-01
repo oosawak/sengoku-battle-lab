@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.6</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.7</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
   :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
@@ -49,7 +49,7 @@
   .tactic .m{font-size:12px;color:var(--sub);display:block;margin-top:4px;line-height:1.5}
   .danger{font-weight:700} .d-low{color:#9fd48f}.d-mid{color:#e8cf7a}.d-high{color:#f0a35e}.d-ext{color:#ff7d6b}
   .stats{font-size:13px;line-height:1.9;color:var(--sub)} .stats b{color:var(--ink)}
-  #resolve{width:100%;padding:12px;background:var(--accent);color:#1a160d;border:0;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  #resolve{width:100%;padding:13px;background:var(--accent);color:#1a160d;border:0;border-radius:8px;font-size:15.5px;font-weight:700;cursor:pointer;font-family:inherit;position:sticky;bottom:8px;z-index:3;box-shadow:0 5px 20px rgba(0,0,0,.6)}
   #result{margin-top:12px;font-size:13.5px;line-height:1.8;background:#171410;border:1px solid var(--line);border-radius:8px;padding:10px;display:none;white-space:pre-wrap}
   input[type=range]{width:100%}
   .note{font-size:12px;color:var(--sub);line-height:1.7}
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.6</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.7</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -81,7 +81,7 @@
     <div id="tacticOverlay">
       <div class="to-head"><span id="toTitle"></span><span id="toMeta"></span></div>
       <div id="toTactics"></div>
-      <button id="toResolve">この采配で進める</button>
+      <button id="toResolve">決定する（この采配で進める）</button>
     </div>
     <div id="resultOverlay" class="hiddenOv">
       <div id="roHead"></div><div id="roBody"></div>
@@ -104,7 +104,7 @@
     <div id="tactics"></div>
     <label class="lbl">地形の縦誇張（3D）: <span id="exVal"></span></label>
     <input type="range" id="exSlider" min="1" max="10" step="0.5" value="6">
-    <button id="resolve">この采配で合戦を解決する</button>
+    <button id="resolve">決定する（この采配で合戦を解決）</button>
     <div id="turnLog" style="margin-top:10px"></div>
     <div id="result"></div>
     <p class="note" style="margin-top:12px">危険度は設計メモv0.1の試作式: 合戦基礎＋役目危険＋敵優勢 − 実効武勇×0.25 − 知略×0.15 ＋健康補正＋地形修正。討死は危険度50以上でのみ起こりえます。数値はすべて調整用の試作値です。</p>
@@ -398,14 +398,14 @@ async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=
   }catch(e){ OSMSTATUS[bid]='fail'; }
   if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } }
 /* ---------- wiring ---------- */
-document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; const rb2=$("#resolve"); rb2.disabled=false; rb2.textContent="この采配で合戦を解決する"; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
+document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; const rb2=$("#resolve"); rb2.disabled=false; rb2.textContent="決定する（この采配で合戦を解決）"; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#viewSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curView=b.dataset.v;
   $("#view3d").style.display = curView==="3d"?"block":"none"; $("#view2d").style.display = curView==="2d"?"block":"none"; if(curView==="2d") draw2D(); });
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#resolve").onclick=playBattle;
 $("#toResolve").onclick=playBattle;
-$("#roAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; const rb=$("#resolve"); rb.disabled=false; rb.textContent="この采配で合戦を解決する"; syncOverlay(); };
+$("#roAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; const rb=$("#resolve"); rb.disabled=false; rb.textContent="決定する（この采配で合戦を解決）"; syncOverlay(); };
 $("#roClose").onclick=()=>{ $("#resultOverlay").classList.add("hiddenOv"); };
 $("#exSlider").value=BATTLES[curBattle].exDefault;
 renderPanel(); draw2D(); init3D(); loadOSM(curBattle);
