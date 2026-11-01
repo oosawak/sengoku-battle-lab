@@ -23,10 +23,10 @@ html = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.12</title>
+<title>奥羽一生録・合戦実験 トラックA | 3D布陣図モック v0.13</title>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/"}}</script>
 <style>
-  :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; }
+  :root{ --bg:#16140f; --panel:#221e16; --line:#4a4232; --ink:#ece2c8; --sub:#b8ab8a; --ally:#8fc1ff; --enemy:#ff9d8a; --accent:#d9a441; --gold:#d9a441; }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;}
   header{padding:14px 16px 8px} h1{font-size:20px;margin:0 0 4px} .sub{color:var(--sub);font-size:12.5px;line-height:1.6}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -82,15 +82,21 @@ html = r"""<!DOCTYPE html>
   .sheet-foot{margin-top:9px}
   #shDecide,#shAgain{width:100%;background:var(--gold);color:#241f10;font-weight:700;border:none;border-radius:9px;padding:12px;font-size:15px;cursor:pointer;font-family:inherit}
   body{padding-bottom:110px}
+  #startOverlay{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:rgba(10,9,6,.38)}
+  .start-card{text-align:center;background:rgba(14,12,9,.9);border:1px solid var(--accent);border-radius:14px;padding:20px 26px;max-width:86%}
+  #startTitle{font-size:19px;font-weight:700;margin-bottom:6px}
+  #startInfo{font-size:13px;color:var(--sub);margin-bottom:14px;line-height:1.7}
+  #startBtn{background:var(--accent);color:#1a160d;font-weight:700;border:none;border-radius:10px;padding:14px 38px;font-size:18px;cursor:pointer;font-family:inherit;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+  .start-note{font-size:11.5px;color:var(--sub);margin-top:9px}
   #hint{position:absolute;right:10px;bottom:10px;background:rgba(20,18,13,.8);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11.5px;color:var(--sub)}
   .badge{position:absolute;left:10px;bottom:10px;background:rgba(20,18,13,.85);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--sub)}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
   .panel h2{font-size:15px;margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
   .panel h3{font-size:13px;margin:14px 0 6px;color:var(--accent)}
   select{width:100%;padding:8px;background:#171410;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:inherit}
-  .tactic{display:block;width:100%;text-align:left;background:#1b1811;border:1px solid var(--line);border-radius:8px;padding:10px;margin:0 0 8px;color:var(--ink);cursor:pointer;font-family:inherit}
-  .tactic.on{border-color:var(--accent);background:#2a2113}
-  .tactic .t{font-size:14px;display:block}
+  .tactic{display:block;width:100%;text-align:left;background:#2b2416;border:1px solid #77683f;border-radius:8px;padding:10px;margin:0 0 8px;color:var(--ink);cursor:pointer;font-family:inherit}
+  .tactic.on{border-color:var(--accent);background:#453314;box-shadow:inset 0 0 0 1px var(--accent)}
+  .tactic .t{font-size:14px;display:block;font-weight:600}
   .tactic .m{font-size:12px;color:var(--sub);display:block;margin-top:4px;line-height:1.5}
   .danger{font-weight:700} .d-low{color:#9fd48f}.d-mid{color:#e8cf7a}.d-high{color:#f0a35e}.d-ext{color:#ff7d6b}
   .stats{font-size:13px;line-height:1.9;color:var(--sub)} .stats b{color:var(--ink)}
@@ -103,7 +109,7 @@ html = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.12</h1>
+  <h1>合戦実験 トラックA — 3D地形の布陣図＋采配 v0.13</h1>
   <div class="sub">『奥羽一生録』本体とは独立した実験モックです。地形は国土地理院DEM10Bの実データ（中心約3.9km四方を128×128に縮小）。部隊配置は模式図で、史実の布陣再現ではありません。川・道はOpenStreetMapの実線です（2026-11-01に取得した分を同梱。川は全件、道は主要道と名前のある道のみ）。</div>
   <div class="row" style="margin-top:10px">
     <div class="seg" id="battleSeg">
@@ -122,6 +128,7 @@ html = r"""<!DOCTYPE html>
     <canvas id="view2d" width="900" height="620"></canvas>
     <div id="compass"><span id="needle">↑</span><span>北</span></div>
     <div id="hint">ドラッグ: 回転 / ピンチ・ホイール: 拡大（自動回転は触ると止まります）</div>
+    <div id="startOverlay"><div class="start-card"><div id="startTitle"></div><div id="startInfo"></div><button id="startBtn">戦闘開始</button><div class="start-note">押すと采配の選択肢が出ます</div></div></div>
     <div class="badge" id="stageBadge"></div>
   </section>
 <div id="sheet">
@@ -256,6 +263,8 @@ function renderOverlay(){ const B=BATTLES[curBattle], P=B.persons[curPerson];
   const ct=P.tactics[curTactic], cd=dangerOf(ct);
   $("#shCompact").textContent = battlePhase==="playing" ? ($("#shStatus").textContent||"合戦中…") : battlePhase==="done" ? ($("#shRoHead").textContent||"結果") : "選択中: "+ct.text+"（危険度 "+cd+"）";
   $("#shTitle").textContent=P.name+" の采配 — "+B.title;
+  $("#startTitle").textContent=B.title+"（"+B.date+"）";
+  $("#startInfo").textContent=B.place;
   $("#shMeta").textContent="兵種: "+P.troopLabel+" / 健康: "+healthMods().label;
   const tw=$("#shTactics"); tw.innerHTML="";
   P.tactics.forEach((t,i)=>{ const d=dangerOf(t), bd=band(d);
@@ -265,6 +274,8 @@ function renderOverlay(){ const B=BATTLES[curBattle], P=B.persons[curPerson];
     b.onclick=()=>{ curTactic=i; renderPanel(); }; tw.appendChild(b); }); }
 function setStatus(msg){ const st=$("#shStatus"); st.textContent=msg; if(overlayCollapsed) $("#shCompact").textContent=msg; }
 function syncOverlay(){ const ready=battlePhase==="ready", playing=battlePhase==="playing", done=battlePhase==="done";
+  $("#sheet").classList.toggle("hiddenOv", battlePhase==="intro");
+  $("#startOverlay").classList.toggle("hiddenOv", battlePhase!=="intro");
   $("#shTactics").classList.toggle("hiddenOv", !ready);
   $("#shStatus").classList.toggle("hiddenOv", !playing);
   $("#shResult").classList.toggle("hiddenOv", !done);
@@ -337,7 +348,7 @@ function draw2D(){
     ctx.textAlign="left"; ctx.textBaseline="alphabetic"; });
 }
 /* ---------- ターン進行（部隊の動き） ---------- */
-let turnPos=null, battlePhase="ready", overlayCollapsed=false;
+let turnPos=null, battlePhase="intro", overlayCollapsed=false;
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function logTurn(msg){ const tl=$("#turnLog"); const d=document.createElement("div"); d.style.cssText="margin:3px 0;color:var(--sub);font-size:13.5px"; d.textContent=msg; tl.appendChild(d); }
 function syncPositions(){ if(curView==="2d") draw2D(); else if(threeState && threeState.unitGroups) positionUnitGroups(); }
@@ -456,12 +467,13 @@ async function loadOSM(bid){ if(OSMDATA[bid]){ updateBadge(); return; } const B=
   }catch(e){ OSMSTATUS[bid]='fail'; }
   if(bid===curBattle){ updateBadge(); draw2D(); buildTerrain(); } }
 /* ---------- wiring ---------- */
-document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="ready"; $("#turnLog").innerHTML=""; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
+document.querySelectorAll("#battleSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#battleSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curBattle=b.dataset.b; curPerson="masamune"; curTactic=0; turnPos=null; battlePhase="intro"; $("#turnLog").innerHTML=""; $("#result").style.display="none"; $("#exSlider").value=BATTLES[curBattle].exDefault; renderPanel(); buildTerrain(); draw2D(); loadOSM(curBattle); });
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#viewSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); curView=b.dataset.v;
   $("#view3d").style.display = curView==="3d"?"block":"none"; $("#view2d").style.display = curView==="2d"?"block":"none"; if(curView==="2d") draw2D(); });
 $("#healthSel").onchange=renderPanel;
 $("#exSlider").oninput=()=>{ $("#exVal").textContent="×"+$("#exSlider").value; buildTerrain(); };
 $("#shDecide").onclick=playBattle;
+$("#startBtn").onclick=()=>{ battlePhase="ready"; syncOverlay(); };
 $("#shToggle").onclick=()=>{ overlayCollapsed=!overlayCollapsed; renderOverlay(); };
 document.querySelectorAll(".fold-head").forEach(b=>b.onclick=()=>{ const f=document.getElementById(b.dataset.fold); const nowHidden=f.classList.toggle("hiddenOv"); b.textContent=b.textContent.replace(/▽|△$/, nowHidden?"▽":"△"); });
 $("#shAgain").onclick=()=>{ resetBattlePositions(); $("#result").style.display="none"; $("#turnLog").innerHTML=""; syncOverlay(); };
